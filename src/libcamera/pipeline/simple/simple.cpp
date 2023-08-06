@@ -37,6 +37,7 @@
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
+#include "libcamera/internal/converter/converter_softw.h"
 
 namespace libcamera {
 
@@ -194,7 +195,7 @@ static const SimplePipelineInfo supportedDevices[] = {
 	{ "imx7-csi", { { "pxp", 1 } } },
 	{ "j721e-csi2rx", {} },
 	{ "mxc-isi", {} },
-	{ "qcom-camss", {} },
+	{ "qcom-camss", { { "software", 1 } } },
 	{ "sun6i-csi", {} },
 };
 
@@ -359,6 +360,11 @@ private:
 	std::map<const MediaEntity *, EntityData> entities_;
 
 	MediaDevice *converter_;
+	// dummy function to force Converter to work w/o media device:
+	MediaDevice *acquireSoftwareConverter(const char *name)
+	{
+		return (new MediaDevice(name));
+	}
 };
 
 /* -----------------------------------------------------------------------------
@@ -497,7 +503,11 @@ int SimpleCameraData::init()
 	/* Open the converter, if any. */
 	MediaDevice *converter = pipe->converter();
 	if (converter) {
-		converter_ = ConverterFactoryBase::create(converter);
+		// hack to make Converter to work w/o media device underneath:
+		if (!converter->isValid() && converter->deviceNode() == "software")
+			converter_ = std::make_unique<SwConverter>(converter);
+		else
+			converter_ = ConverterFactoryBase::create(converter);
 		if (!converter_) {
 			LOG(SimplePipeline, Warning)
 				<< "Failed to create converter, disabling format conversion";
@@ -1410,6 +1420,14 @@ bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 		return false;
 
 	for (const auto &[name, streams] : info->converters) {
+		if (!strcmp(name, "software")) {
+			converter_ = acquireSoftwareConverter(name);
+			if (converter_) {
+				numStreams = streams;
+				break;
+			}
+		}
+
 		DeviceMatch converterMatch(name);
 		converter_ = acquireMediaDevice(enumerator, converterMatch);
 		if (converter_) {

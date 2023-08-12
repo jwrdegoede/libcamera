@@ -36,7 +36,7 @@ std::vector<PixelFormat> SwConverter::formats(PixelFormat input)
 
 	/* Only RAW10P is currently supported */
 	if (inputFormat.bitDepth == 10 && inputFormat.packing == BayerFormat::Packing::CSI2)
-		pixelFormats.push_back(formats::ARGB8888);
+		pixelFormats.push_back(formats::RGB888);
 
 	if (pixelFormats.empty())
 		LOG(Converter, Info)
@@ -60,9 +60,9 @@ std::tuple<unsigned int, unsigned int>
 SwConverter::strideAndFrameSize(const PixelFormat &pixelFormat,
 				const Size &size)
 {
-	/* Only ARGB8888 output is currently supported */
-	if (pixelFormat == formats::ARGB8888) {
-		int stride = size.width * 4;
+	/* Only RGB888 output is currently supported */
+	if (pixelFormat == formats::RGB888) {
+		int stride = size.width * 3;
 		return std::make_tuple(stride, stride * (size.height));
 	}
 
@@ -121,8 +121,8 @@ int SwConverter::Isp::configure(const StreamConfiguration &inputCfg,
 
 	if (outputCfg.size.width != width_ - 2 ||
 	    outputCfg.size.height != height_ - 2 ||
-	    outputCfg.stride != (width_ - 2) * 4 ||
-	    outputCfg.pixelFormat != formats::ARGB8888) {
+	    outputCfg.stride != (width_ - 2) * 3 ||
+	    outputCfg.pixelFormat != formats::RGB888) {
 		LOG(Converter, Error)
 			<< "Output format not supported";
 		return -EINVAL;
@@ -154,8 +154,8 @@ int SwConverter::exportBuffers(unsigned int output, unsigned int count,
 int SwConverter::Isp::exportBuffers(unsigned int count,
 				    std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
-	/* V4L2_PIX_FMT_ABGR32 aka BGR32 for output: */
-	unsigned int bufSize = (height_ - 2) * (width_ - 2) * 4;
+	/* V4L2_PIX_FMT_BGR24 aka 'BGR3' for output: */
+	unsigned int bufSize = (height_ - 2) * (width_ - 2) * 3;
 
 	for (unsigned int i = 0; i < count; i++) {
 		std::string name = "frame-" + std::to_string(i);
@@ -278,7 +278,7 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 {
 	/* RAW10P input format is assumed */
 
-	/* output buffer is in BGR32 format and is of (width-2)*(height-2) */
+	/* output buffer is in BGR24 format and is of (width-2)*(height-2) */
 
 	int w_out = width_ - 2;
 	int h_out = height_ - 2;
@@ -289,7 +289,7 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 
 	for (int y = 0; y < h_out; y++) {
 		const uint8_t *pin_base = src + (y + 1) * stride_;
-		uint8_t *pout = dst + y * w_out * 4;
+		uint8_t *pout = dst + y * w_out * 3;
 		int phase_y = (y + red_shift_.y) % 2;
 
 		for (int x = 0; x < w_out; x++) {
@@ -324,8 +324,6 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 				sumR += val;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* alpha */
-				*pout++ = 0xff;
 				break;
 			case 1: /* at Gr pixel */
 				/* blue: ((0,-1) + (0,1)) / 2 */
@@ -343,8 +341,6 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_p1) ) >> 1;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* alpha */
-				*pout++ = 0xff;
 				break;
 			case 2: /* at Gb pixel */
 				/* blue: ((-1,0) + (1,0)) / 2 */
@@ -362,8 +358,6 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_0 + stride_) ) >> 1;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* alpha */
-				*pout++ = 0xff;
 				break;
 			default: /* at B pixel */
 				/* blue: (0,0) */
@@ -385,8 +379,6 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_p1 + stride_) ) >> 2;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* alpha */
-				*pout++ = 0xff;
 			}
 		}
 	}

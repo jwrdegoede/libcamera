@@ -274,6 +274,13 @@ void SwConverter::Isp::process(FrameBuffer *input, FrameBuffer *output)
 	converter_->inputBufferReady.emit(input);
 }
 
+#define BRIGHT_LVL	(200U << 8) /* for 0 to 255 range of values */
+#define TOO_BRIGHT_LVL	(240U << 8) /* for 0 to 255 range of values */
+
+#define RED_Y_MUL	77	/* 0.30 * 256 */
+#define GREEN_Y_MUL	150	/* 0.59 * 256 */
+#define BLUE_Y_MUL	29	/* 0.11 * 256 */
+
 void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 {
 	/* RAW10P input format is assumed */
@@ -286,6 +293,9 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 	unsigned long sumR = 0;
 	unsigned long sumB = 0;
 	unsigned long sumG = 0;
+
+	unsigned long bright_sum = 0;
+	unsigned long too_bright_sum = 0;
 
 	for (int y = 0; y < h_out; y++) {
 		const uint8_t *pin_base = src + (y + 1) * stride_;
@@ -302,6 +312,8 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 			int x_p1 = x + 2 + (x + 2) / 4;	/* offset for (x+1) */
 			/* the colour component value to write to the output */
 			unsigned val;
+			/* Y value times 256 */
+			unsigned y_val;
 
 			switch (phase) {
 			case 0: /* at R pixel */
@@ -310,6 +322,7 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_p1 - stride_)
 					+ *(pin_base + x_m1 + stride_)
 					+ *(pin_base + x_p1 + stride_) ) >> 2;
+				y_val = BLUE_Y_MUL * val;
 				val = val * bNumerat_ / bDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
@@ -318,10 +331,14 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_m1)
 					+ *(pin_base + x_0 + stride_) ) >> 2;
 				val = val * gNumerat_ / gDenomin_;
+				y_val += GREEN_Y_MUL * val;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* red: (0,0) */
 				val = *(pin_base + x_0);
 				sumR += val;
+				y_val += RED_Y_MUL * val;
+				if (y_val > BRIGHT_LVL) ++bright_sum;
+				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				break;
@@ -329,16 +346,21 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 				/* blue: ((0,-1) + (0,1)) / 2 */
 				val = ( *(pin_base + x_0 - stride_)
 					+ *(pin_base + x_0 + stride_) ) >> 1;
+				y_val = BLUE_Y_MUL * val;
 				val = val * bNumerat_ / bDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* green: (0,0) */
 				val = *(pin_base + x_0);
 				sumG += val;
+				y_val += GREEN_Y_MUL * val;
 				val = val * gNumerat_ / gDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* red: ((-1,0) + (1,0)) / 2 */
 				val = ( *(pin_base + x_m1)
 					+ *(pin_base + x_p1) ) >> 1;
+				y_val += RED_Y_MUL * val;
+				if (y_val > BRIGHT_LVL) ++bright_sum;
+				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				break;
@@ -346,16 +368,21 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 				/* blue: ((-1,0) + (1,0)) / 2 */
 				val = ( *(pin_base + x_m1)
 					+ *(pin_base + x_p1) ) >> 1;
+				y_val = BLUE_Y_MUL * val;
 				val = val * bNumerat_ / bDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* green: (0,0) */
 				val = *(pin_base + x_0);
 				sumG += val;
+				y_val += GREEN_Y_MUL * val;
 				val = val * gNumerat_ / gDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* red: ((0,-1) + (0,1)) / 2 */
 				val = ( *(pin_base + x_0 - stride_)
 					+ *(pin_base + x_0 + stride_) ) >> 1;
+				y_val += RED_Y_MUL * val;
+				if (y_val > BRIGHT_LVL) ++bright_sum;
+				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				break;
@@ -363,6 +390,7 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 				/* blue: (0,0) */
 				val = *(pin_base + x_0);
 				sumB += val;
+				y_val = BLUE_Y_MUL * val;
 				val = val * bNumerat_ / bDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
@@ -370,6 +398,7 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_p1)
 					+ *(pin_base + x_m1)
 					+ *(pin_base + x_0 + stride_) ) >> 2;
+				y_val += GREEN_Y_MUL * val;
 				val = val * gNumerat_ / gDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 				/* red: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
@@ -377,11 +406,26 @@ void SwConverter::Isp::debayer(uint8_t *dst, const uint8_t *src)
 					+ *(pin_base + x_p1 - stride_)
 					+ *(pin_base + x_m1 + stride_)
 					+ *(pin_base + x_p1 + stride_) ) >> 2;
+				y_val += RED_Y_MUL * val;
+				if (y_val > BRIGHT_LVL) ++bright_sum;
+				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 				val = val * rNumerat_ / rDenomin_;
 				*pout++ = (uint8_t)std::min(val, 0xffU);
 			}
 		}
 	}
+
+	/* calculate the fractions of "bright" and "too bright" pixels */
+	bright_ratio_ = (float)bright_sum / (h_out * w_out);
+	too_bright_ratio_ = (float)too_bright_sum / (h_out * w_out);
+{
+	static int xxx = 75;
+	if (--xxx == 0) {
+	xxx = 75;
+	LOG(Converter, Info) << "bright_ratio_ = " << bright_ratio_
+			      << ", too_bright_ratio_ = " << too_bright_ratio_;
+	}
+}
 
 	/* calculate red and blue gains for simple AWB */
 	LOG(Converter, Debug) << "sumR = " << sumR

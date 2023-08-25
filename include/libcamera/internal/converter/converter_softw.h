@@ -82,6 +82,9 @@ private:
 		unsigned long rNumerat_, rDenomin_; /* red gain for AWB */
 		unsigned long bNumerat_, bDenomin_; /* blue gain for AWB */
 		unsigned long gNumerat_, gDenomin_; /* green gain for AWB */
+
+		float bright_ratio_;		/* 0.0 to 1.0 (1.0 == 100%) */
+		float too_bright_ratio_;	/* 0.0 to 1.0 */
 	};
 
 	std::unique_ptr<Isp> isp_;

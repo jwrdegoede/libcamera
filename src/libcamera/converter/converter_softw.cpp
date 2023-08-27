@@ -268,6 +268,8 @@ void SwConverter::Isp::process(FrameBuffer *input, FrameBuffer *output)
 
 	debayer(rgbData, rawData);
 
+	converter_->agcDataReady.emit(bright_ratio_, too_bright_ratio_);
+
 	metadata.planes()[0].bytesused = rgbPlane.length;
 
 	converter_->outputBufferReady.emit(output);

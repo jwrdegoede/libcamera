@@ -52,6 +52,8 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<unsigned int, FrameBuffer *> &outputs);
 
+	Signal<float, float> agcDataReady;
+
 private:
 	class Isp : public Object
 	{

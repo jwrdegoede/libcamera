@@ -51,6 +51,7 @@ EXCLUDE_PATTERNS       = @TOP_BUILDDIR@/include/libcamera/ipa/*_serializer.h \
                          @TOP_BUILDDIR@/include/libcamera/ipa/ipu3_*.h \
                          @TOP_BUILDDIR@/include/libcamera/ipa/raspberrypi_*.h \
                          @TOP_BUILDDIR@/include/libcamera/ipa/rkisp1_*.h \
+                         @TOP_BUILDDIR@/include/libcamera/ipa/simple_*.h \
                          @TOP_BUILDDIR@/include/libcamera/ipa/vimc_*.h
 
 EXCLUDE_SYMBOLS        = libcamera::BoundMethodArgs \

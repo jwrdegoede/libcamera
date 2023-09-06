@@ -1,0 +1,24 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+
+/*
+ * \todo Document the interface and remove the related EXCLUDE_PATTERNS entry.
+ */
+
+module ipa.simple;
+
+import "include/libcamera/ipa/core.mojom";
+
+interface IPASimpleInterface {
+	init(libcamera.IPASettings settings,
+	     libcamera.ControlList sensorControls)
+		=> (int32 ret);
+	start() => (int32 ret);
+	stop();
+
+	processStats(libcamera.ControlList sensorControls,
+		     float bright_ratio, float too_bright_ratio);
+};
+
+interface IPASimpleEventInterface {
+	setSensorControls(libcamera.ControlList sensorControls);
+};

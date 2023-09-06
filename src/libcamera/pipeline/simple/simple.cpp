@@ -25,6 +25,8 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/control_ids.h>
+#include <libcamera/ipa/simple_ipa_interface.h>
+#include <libcamera/ipa/simple_ipa_proxy.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
@@ -32,6 +34,7 @@
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/converter.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/v4l2_subdevice.h"
@@ -275,12 +278,17 @@ public:
 	bool useConverter_;
 	std::queue<std::map<unsigned int, FrameBuffer *>> converterQueue_;
 
+	std::unique_ptr<ipa::simple::IPAProxySimple> ipa_;
+
 private:
 	void tryPipeline(unsigned int code, const Size &size);
 	static std::vector<const MediaPad *> routedSourcePads(MediaPad *sink);
 
 	void converterInputDone(FrameBuffer *buffer);
 	void converterOutputDone(FrameBuffer *buffer);
+
+	void converterAgcDataReady(float bright_ratio, float too_bright_ratio);
+	void setSensorControls(const ControlList &sensorControls);
 };
 
 class SimpleCameraConfiguration : public CameraConfiguration
@@ -500,22 +508,48 @@ int SimpleCameraData::init()
 	SimplePipelineHandler *pipe = SimpleCameraData::pipe();
 	int ret;
 
+	int load_ipa = 0;
+
 	/* Open the converter, if any. */
 	MediaDevice *converter = pipe->converter();
 	if (converter) {
 		// hack to make Converter to work w/o media device underneath:
-		if (!converter->isValid() && converter->deviceNode() == "software")
+		if (!converter->isValid() && converter->deviceNode() == "software") {
+			LOG(SimplePipeline, Info) << "Creating converter...";
 			converter_ = std::make_unique<SwConverter>(converter);
-		else
+			load_ipa = 1;
+		} else {
 			converter_ = ConverterFactoryBase::create(converter);
+		}
 		if (!converter_) {
 			LOG(SimplePipeline, Warning)
 				<< "Failed to create converter, disabling format conversion";
 			converter_.reset();
+			load_ipa = 0;
 		} else {
 			converter_->inputBufferReady.connect(this, &SimpleCameraData::converterInputDone);
 			converter_->outputBufferReady.connect(this, &SimpleCameraData::converterOutputDone);
 		}
+	}
+
+	if (load_ipa) {
+		ipa_ = IPAManager::createIPA<ipa::simple::IPAProxySimple>(pipe, 0, 0);
+		if (!ipa_) {
+			LOG(SimplePipeline, Error) << "Creating IPA failed";
+			return -ENOENT;
+		}
+
+		ipa_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
+
+		ret = ipa_->init(IPASettings{ "No cfg file", "No sensor model" },
+				 sensor_->getControls( { V4L2_CID_ANALOGUE_GAIN,
+							 V4L2_CID_EXPOSURE } ));
+		if (ret) {
+			LOG(SimplePipeline, Error) << "IPA init failed";
+			return ret;
+		}
+
+		static_cast<SwConverter *>(converter_.get())->agcDataReady.connect(this, &SimpleCameraData::converterAgcDataReady);
 	}
 
 	video_ = pipe->video(entities_.back().entity);
@@ -554,6 +588,22 @@ int SimpleCameraData::init()
 	properties_ = sensor_->properties();
 
 	return 0;
+}
+
+void SimpleCameraData::converterAgcDataReady(float bright_ratio,
+					     float too_bright_ratio)
+{
+	if (!ipa_) return;
+
+	ipa_->processStats(sensor_->getControls( { V4L2_CID_ANALOGUE_GAIN,
+						   V4L2_CID_EXPOSURE } ),
+			   bright_ratio, too_bright_ratio);
+}
+
+void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
+{
+	ControlList ctrls(sensorControls);
+	sensor_->setControls(&ctrls);
 }
 
 /*
@@ -1220,6 +1270,10 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		return -EBUSY;
 	}
 
+	if (data->ipa_) {
+		data->ipa_->start(); // \todo check return value
+	}
+
 	if (data->useConverter_) {
 		/*
 		 * When using the converter allocate a fixed number of internal
@@ -1267,6 +1321,9 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 
 	if (data->useConverter_)
 		data->converter_->stop();
+
+	if (data->ipa_)
+		data->ipa_->stop();
 
 	video->streamOff();
 	video->releaseBuffers();

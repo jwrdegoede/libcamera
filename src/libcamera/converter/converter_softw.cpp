@@ -24,6 +24,7 @@
 
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/mapped_framebuffer.h"
 
 namespace libcamera {
 
@@ -240,25 +241,15 @@ void SwConverter::process(FrameBuffer *input, FrameBuffer *output)
 
 void SwConverter::Isp::process(FrameBuffer *input, FrameBuffer *output)
 {
-	const uint8_t *rawData;
-	uint8_t *rgbData;
-
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();
 	metadata.status = input->metadata().status;
 	metadata.sequence = input->metadata().sequence;
 	metadata.timestamp = input->metadata().timestamp;
 
-	const FrameBuffer::Plane &plane = input->planes()[0];
-	/* TODO: use MappedBuffer class for mapping the frame buffers */
-	rawData = (const uint8_t *)mmap(NULL, plane.length, PROT_READ,
-					MAP_SHARED, plane.fd.get(), 0);
-	const FrameBuffer::Plane &rgbPlane = output->planes()[0];
-	rgbData = (uint8_t *)mmap(NULL, rgbPlane.length, PROT_READ | PROT_WRITE,
-				  MAP_SHARED, rgbPlane.fd.get(), 0);
-	LOG(Converter, Debug) << "raw length = " << plane.length
-			      << ", rgb length = " << rgbPlane.length;
-	if (rawData == MAP_FAILED || rgbData == MAP_FAILED) {
+	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
+	MappedFrameBuffer out(output, MappedFrameBuffer::MapFlag::Write);
+	if (!in.isValid() || !out.isValid()) {
 		LOG(Converter, Error) << "mmap-ing buffer(s) failed";
 		metadata.status = FrameMetadata::FrameError;
 		converter_->outputBufferReady.emit(output);
@@ -266,11 +257,10 @@ void SwConverter::Isp::process(FrameBuffer *input, FrameBuffer *output)
 		return;
 	}
 
-	debayer(rgbData, rawData);
+	debayer(out.planes()[0].data(), in.planes()[0].data());
+	metadata.planes()[0].bytesused = out.planes()[0].size();
 
 	converter_->agcDataReady.emit(bright_ratio_, too_bright_ratio_);
-
-	metadata.planes()[0].bytesused = rgbPlane.length;
 
 	converter_->outputBufferReady.emit(output);
 	converter_->inputBufferReady.emit(input);

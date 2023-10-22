@@ -3,5 +3,6 @@
 libcamera_sources += files([
     'debayer.cpp',
     'debayer_cpu.cpp',
+    'software_isp.cpp',
     'swstats_cpu.cpp',
 ])

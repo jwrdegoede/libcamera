@@ -15,8 +15,8 @@ interface IPASimpleInterface {
 	start() => (int32 ret);
 	stop();
 
-	processStats(libcamera.ControlList sensorControls,
-		     float bright_ratio, float too_bright_ratio);
+	[async] processStats(libcamera.ControlList sensorControls,
+			     float bright_ratio, float too_bright_ratio);
 };
 
 interface IPASimpleEventInterface {

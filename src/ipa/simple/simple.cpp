@@ -6,6 +6,8 @@
  */
 #include <libcamera/ipa/simple_ipa_interface.h>
 
+#include <sys/mman.h>
+
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
 
@@ -14,6 +16,7 @@
 #include <libcamera/ipa/ipa_module_info.h>
 
 #include "libcamera/internal/camera_sensor.h"
+#include "libcamera/internal/soft_isp/statistics.h"
 
 namespace libcamera {
 
@@ -29,20 +32,25 @@ public:
 	}
 	~IPASimple()
 	{
+		if (stats_)
+			munmap(stats_, sizeof(Statistics));
 	}
 
 	int init(const IPASettings &settings,
-		 const ControlList &sensorControls) override;
+		 const SharedFD &fd,
+		 const ControlInfoMap &sensorInfoMap) override;
+	int configure(const ControlInfoMap &sensorInfoMap) override;
 
 	int start() override;
 	void stop() override;
 
-	void processStats(const ControlList &sensorControls,
-			  float bright_ratio, float too_bright_ratio);
+	void processStats(const ControlList &sensorControls) override;
 
 private:
 	void update_exposure(double ev_adjustment);
 
+	SharedFD fd_;
+	Statistics *stats_;
 	int exposure_min_, exposure_max_;
 	int again_min_, again_max_;
 	int again_, exposure_;
@@ -50,20 +58,39 @@ private:
 };
 
 int IPASimple::init([[maybe_unused]] const IPASettings &settings,
-		    const ControlList &sensorControls)
+		    const SharedFD &fd, const ControlInfoMap &sensorInfoMap)
 {
-	if (!sensorControls.contains(V4L2_CID_EXPOSURE)) {
+	fd_ = std::move(fd);
+	if (!fd_.isValid()) {
+		LOG(IPASimple, Error) << "Invalid Statistics handle";
+		return -ENODEV;
+	}
+
+	stats_ = static_cast<Statistics *>(mmap(nullptr, sizeof(Statistics),
+						PROT_READ | PROT_WRITE, MAP_SHARED,
+						fd_.get(), 0));
+	if (!stats_) {
+		LOG(IPASimple, Error) << "Unable to map Statistics";
+		return -ENODEV;
+	}
+
+	if (sensorInfoMap.find(V4L2_CID_EXPOSURE) == sensorInfoMap.end()) {
 		LOG(IPASimple, Error) << "Don't have exposure control";
 		return -EINVAL;
 	}
-	if (!sensorControls.contains(V4L2_CID_ANALOGUE_GAIN)) {
+
+	if (sensorInfoMap.find(V4L2_CID_ANALOGUE_GAIN) == sensorInfoMap.end()) {
 		LOG(IPASimple, Error) << "Don't have gain control";
 		return -EINVAL;
 	}
 
-	const ControlInfoMap &infoMap = *sensorControls.infoMap();
-	const ControlInfo &exposure_info = infoMap.find(V4L2_CID_EXPOSURE)->second;
-	const ControlInfo &gain_info = infoMap.find(V4L2_CID_ANALOGUE_GAIN)->second;
+	return 0;
+}
+
+int IPASimple::configure(const ControlInfoMap &sensorInfoMap)
+{
+	const ControlInfo &exposure_info = sensorInfoMap.find(V4L2_CID_EXPOSURE)->second;
+	const ControlInfo &gain_info = sensorInfoMap.find(V4L2_CID_ANALOGUE_GAIN)->second;
 
 	exposure_min_ = exposure_info.min().get<int>();
 	if (!exposure_min_) {
@@ -78,8 +105,8 @@ int IPASimple::init([[maybe_unused]] const IPASettings &settings,
 	}
 	again_max_ = gain_info.max().get<int>();
 
-	LOG(IPASimple, Info) << "Exposure" << exposure_min_ << " " << exposure_max_
-			     << ", gain" << again_min_ << " " << again_max_;
+	LOG(IPASimple, Info) << "Exposure " << exposure_min_ << "-" << exposure_max_
+			     << ", gain " << again_min_ << "-" << again_max_;
 
 	return 0;
 }
@@ -110,8 +137,7 @@ void IPASimple::update_exposure(double ev_adjustment)
 			      << ", real EV = " << (double)again_ * exposure_;
 }
 
-void IPASimple::processStats(const ControlList &sensorControls,
-			     float bright_ratio, float too_bright_ratio)
+void IPASimple::processStats(const ControlList &sensorControls)
 {
 	double ev_adjustment = 0.0;
 	ControlList ctrls(sensorControls);
@@ -127,8 +153,8 @@ void IPASimple::processStats(const ControlList &sensorControls,
 		return;
 	}
 
-	if (bright_ratio < 0.01) ev_adjustment = 1.1;
-	if (too_bright_ratio > 0.04) ev_adjustment = 0.9;
+	if (stats_->bright_ratio < 0.01) ev_adjustment = 1.1;
+	if (stats_->too_bright_ratio > 0.04) ev_adjustment = 0.9;
 
 	if (ev_adjustment != 0.0) {
 		/* sanity check */

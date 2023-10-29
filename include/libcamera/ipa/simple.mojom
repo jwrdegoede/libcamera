@@ -10,13 +10,15 @@ import "include/libcamera/ipa/core.mojom";
 
 interface IPASimpleInterface {
 	init(libcamera.IPASettings settings,
-	     libcamera.ControlList sensorControls)
+	     libcamera.SharedFD fd,
+	     libcamera.ControlInfoMap sensorCtrlInfoMap)
 		=> (int32 ret);
 	start() => (int32 ret);
 	stop();
+	configure(libcamera.ControlInfoMap sensorCtrlInfoMap)
+		=> (int32 ret);
 
-	[async] processStats(libcamera.ControlList sensorControls,
-			     float bright_ratio, float too_bright_ratio);
+	[async] processStats(libcamera.ControlList sensorControls);
 };
 
 interface IPASimpleEventInterface {

@@ -41,6 +41,8 @@
 #include "libcamera/internal/v4l2_videodevice.h"
 
 #include "libcamera/internal/converter/converter_softw.h"
+#include "libcamera/internal/shared_mem_object.h"
+#include "libcamera/internal/soft_isp/statistics.h"
 
 namespace libcamera {
 
@@ -280,6 +282,7 @@ public:
 
 	std::unique_ptr<ipa::simple::IPAProxySimple> ipa_;
 
+	SharedMemObject<Statistics> stats_;
 private:
 	void tryPipeline(unsigned int code, const Size &size);
 	static std::vector<const MediaPad *> routedSourcePads(MediaPad *sink);
@@ -517,7 +520,14 @@ int SimpleCameraData::init()
 		if (!converter->isValid() && converter->deviceNode() == "software") {
 			LOG(SimplePipeline, Info) << "Creating converter...";
 			converter_ = std::make_unique<SwConverter>(converter);
-			load_ipa = 1;
+			stats_ = SharedMemObject<Statistics>("softIsp_stats");
+			if (!stats_.fd().isValid()) {
+				LOG(SimplePipeline, Error)
+					<< "Failed to create softIsp shared object";
+				converter_.reset(nullptr);
+			} else {
+				load_ipa = 1;
+			}
 		} else {
 			converter_ = ConverterFactoryBase::create(converter);
 		}
@@ -539,17 +549,19 @@ int SimpleCameraData::init()
 			return -ENOENT;
 		}
 
-		ipa_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
-
 		ret = ipa_->init(IPASettings{ "No cfg file", "No sensor model" },
-				 sensor_->getControls( { V4L2_CID_ANALOGUE_GAIN,
-							 V4L2_CID_EXPOSURE } ));
+				 stats_.fd(),
+				 sensor_->controls());
 		if (ret) {
 			LOG(SimplePipeline, Error) << "IPA init failed";
 			return ret;
 		}
 
+		ipa_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
+
 		static_cast<SwConverter *>(converter_.get())->agcDataReady.connect(this, &SimpleCameraData::converterAgcDataReady);
+
+		ipa_->configure(sensor_->controls());
 	}
 
 	video_ = pipe->video(entities_.back().entity);
@@ -595,9 +607,10 @@ void SimpleCameraData::converterAgcDataReady(float bright_ratio,
 {
 	if (!ipa_) return;
 
+	stats_->bright_ratio = bright_ratio;
+	stats_->too_bright_ratio = too_bright_ratio;
 	ipa_->processStats(sensor_->getControls( { V4L2_CID_ANALOGUE_GAIN,
-						   V4L2_CID_EXPOSURE } ),
-			   bright_ratio, too_bright_ratio);
+						   V4L2_CID_EXPOSURE } ) );
 }
 
 void SimpleCameraData::setSensorControls(const ControlList &sensorControls)

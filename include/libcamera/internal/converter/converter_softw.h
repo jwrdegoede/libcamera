@@ -5,6 +5,8 @@
  * converter_softw.h - interface of software converter (runs 100% on CPU)
  */
 
+#pragma once
+
 #include <map>
 #include <tuple>
 #include <vector>

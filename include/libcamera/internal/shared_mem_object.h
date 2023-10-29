@@ -19,8 +19,6 @@
 
 namespace libcamera {
 
-namespace RPi {
-
 template<class T>
 class SharedMemObject
 {
@@ -122,7 +120,5 @@ private:
 	SharedFD fd_;
 	T *obj_;
 };
-
-} /* namespace RPi */
 
 } /* namespace libcamera */

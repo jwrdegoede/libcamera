@@ -49,3 +49,4 @@ libcamera_internal_headers = files([
 ])
 
 subdir('converter')
+subdir('software_isp')

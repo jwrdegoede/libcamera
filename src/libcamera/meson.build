@@ -70,6 +70,7 @@ subdir('converter')
 subdir('ipa')
 subdir('pipeline')
 subdir('proxy')
+subdir('software_isp')
 
 null_dep = dependency('', required : false)
 

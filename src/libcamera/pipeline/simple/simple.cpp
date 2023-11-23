@@ -201,6 +201,7 @@ static const SimplePipelineInfo supportedDevices[] = {
 	{ "j721e-csi2rx", {} },
 	{ "mxc-isi", {} },
 	{ "qcom-camss", { { "software", 1 } } },
+	{ "intel-ipu6", { { "software", 1 } } },
 	{ "sun6i-csi", {} },
 };
 

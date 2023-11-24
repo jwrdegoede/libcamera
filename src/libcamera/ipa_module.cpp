@@ -476,6 +476,11 @@ IPAInterface *IPAModule::createInterface()
 bool IPAModule::match(PipelineHandler *pipe,
 		      uint32_t minVersion, uint32_t maxVersion) const
 {
+	LOG(IPAModule, Info) << "info_.pipelineVersion=" << info_.pipelineVersion
+		<< ", min/maxVersion=" << minVersion << "/" << maxVersion
+		<< ", info_.pipelineName=" << info_.pipelineName
+		<< ", pipe->name()=" << pipe->name();
+
 	return info_.pipelineVersion >= minVersion &&
 	       info_.pipelineVersion <= maxVersion &&
 	       !strcmp(info_.pipelineName, pipe->name());

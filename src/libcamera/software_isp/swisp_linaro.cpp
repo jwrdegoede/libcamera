@@ -174,15 +174,15 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 	}
 
 	/* calculate the fractions of "bright" and "too bright" pixels */
-	bright_ratio_ = (float)bright_sum / (h_out * w_out);
-	too_bright_ratio_ = (float)too_bright_sum / (h_out * w_out);
+	stats_.bright_ratio = (float)bright_sum / (h_out * w_out);
+	stats_.too_bright_ratio = (float)too_bright_sum / (h_out * w_out);
 {
 	static int xxx = 75;
 	if (--xxx == 0) {
 	xxx = 75;
 	LOG(SoftwareIsp, Info)
-		<< "bright_ratio_ = " << bright_ratio_
-		<< ", too_bright_ratio_ = " << too_bright_ratio_;
+		<< "bright_ratio_ = " << stats_.bright_ratio
+		<< ", too_bright_ratio_ = " << stats_.too_bright_ratio;
 	}
 }
 
@@ -514,8 +514,7 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 	(this->*debayerInfo_->debayer)(out.planes()[0].data(), in.planes()[0].data());
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
-	//swIsp_->agcDataReady.emit(&stats_);
-	swIsp_->agcDataReady.emit(bright_ratio_, too_bright_ratio_);
+	swIsp_->agcDataReady.emit(&stats_);
 
 	swIsp_->outputBufferReady.emit(output);
 	swIsp_->inputBufferReady.emit(input);

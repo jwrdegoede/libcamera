@@ -12,16 +12,10 @@
 
 #include <libcamera/pixel_format.h>
 
+#include "libcamera/internal/software_isp/statistics-linaro.h"
 #include "libcamera/internal/software_isp.h"
 
 namespace libcamera {
-
-#if 0
-struct SwIspStatsLinaro {
-	float bright_ratio;		/* 0.0 to 1.0 (1.0 == 100%) */
-	float too_bright_ratio;		/* 0.0 to 1.0 */
-}
-#endif /* #if 0 */
 
 class SwIspLinaro : public SoftwareIsp
 {
@@ -51,8 +45,7 @@ public:
 
 	void process(FrameBuffer *input, FrameBuffer *output);
 
-	//Signal<SwIspStatsLinaro *> agcDataReady;
-	Signal<float, float> agcDataReady;
+	Signal<SwIspStats *> agcDataReady;
 
 private:
 	class IspWorker : public Object
@@ -113,9 +106,7 @@ private:
 		unsigned long bNumerat_, bDenomin_; /* blue gain for AWB */
 		unsigned long gNumerat_, gDenomin_; /* green gain for AWB */
 
-		//SwIspStatsLinaro stats_;
-		float bright_ratio_;		/* 0.0 to 1.0 (1.0 == 100%) */
-		float too_bright_ratio_;	/* 0.0 to 1.0 */
+		SwIspStats stats_;
 	};
 
 	std::unique_ptr<IspWorker> ispWorker_;

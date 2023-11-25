@@ -12,6 +12,7 @@
 
 #include <libcamera/pixel_format.h>
 
+#include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/statistics-linaro.h"
 #include "libcamera/internal/software_isp.h"
 
@@ -43,11 +44,13 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<unsigned int, FrameBuffer *> &outputs);
 
+	const SharedFD &getStatsFD() { return sharedStats_.fd(); }
+
 	void process(FrameBuffer *input, FrameBuffer *output);
 
-	Signal<SwIspStats *> agcDataReady;
-
 private:
+	SharedMemObject<SwIspStats> sharedStats_;
+
 	class IspWorker : public Object
 	{
 	public:

@@ -26,13 +26,25 @@ SwIspLinaro::SwIspLinaro(const std::string &name)
 	: SoftwareIsp(name)
 {
 	ispWorker_ = std::make_unique<SwIspLinaro::IspWorker>(this);
-	ispWorker_->moveToThread(&ispWorkerThread_);
+	if (!ispWorker_) {
+		LOG(SoftwareIsp, Error)
+			<< "Failed to create ISP worker";
+	} else {
+		sharedStats_ = SharedMemObject<SwIspStats>("softIsp_stats");
+		if (!sharedStats_.fd().isValid()) {
+			LOG(SoftwareIsp, Error)
+				<< "Failed to create shared memory for statistics";
+			ispWorker_.reset();
+		} else {
+			ispWorker_->moveToThread(&ispWorkerThread_);
+		}
+	}
 }
 
 bool SwIspLinaro::isValid() const
 {
 	/* TODO: proper implementation */
-	return true;
+	return !!ispWorker_;
 }
 
 void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
@@ -514,7 +526,8 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 	(this->*debayerInfo_->debayer)(out.planes()[0].data(), in.planes()[0].data());
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
-	swIsp_->agcDataReady.emit(&stats_);
+	*swIsp_->sharedStats_ = stats_;
+	swIsp_->ispStatsReady.emit(0);
 
 	swIsp_->outputBufferReady.emit(output);
 	swIsp_->inputBufferReady.emit(input);

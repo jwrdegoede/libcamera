@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/shared_fd.h>
 #include <libcamera/base/signal.h>
 
 #include <libcamera/geometry.h>
@@ -53,8 +54,13 @@ public:
 	virtual int queueBuffers(FrameBuffer *input,
 				 const std::map<unsigned int, FrameBuffer *> &outputs) = 0;
 
+	virtual const SharedFD &getStatsFD() = 0; /* temporary hack? */
+
 	Signal<FrameBuffer *> inputBufferReady;
 	Signal<FrameBuffer *> outputBufferReady;
+
+	/* The int parameter isn't actually used */
+	Signal<int> ispStatsReady;
 
 	const std::string &name() const { return name_; }
 private:

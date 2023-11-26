@@ -25,6 +25,8 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/control_ids.h>
+#include <libcamera/ipa/soft_ipa_interface.h>
+#include <libcamera/ipa/soft_ipa_proxy.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
@@ -32,11 +34,14 @@
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/converter.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
+#include "libcamera/internal/software_isp.h"
+#include "libcamera/internal/software_isp/swisp_linaro.h"
 
 namespace libcamera {
 
@@ -269,17 +274,23 @@ public:
 	std::vector<Configuration> configs_;
 	std::map<PixelFormat, std::vector<const Configuration *>> formats_;
 
+	std::vector<std::unique_ptr<FrameBuffer>> conversionBuffers_;
+	bool useConversion_;
+	std::queue<std::map<unsigned int, FrameBuffer *>> conversionQueue_;
+
 	std::unique_ptr<Converter> converter_;
-	std::vector<std::unique_ptr<FrameBuffer>> converterBuffers_;
-	bool useConverter_;
-	std::queue<std::map<unsigned int, FrameBuffer *>> converterQueue_;
+	std::unique_ptr<SoftwareIsp> swIsp_;
+	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;
 
 private:
 	void tryPipeline(unsigned int code, const Size &size);
 	static std::vector<const MediaPad *> routedSourcePads(MediaPad *sink);
 
-	void converterInputDone(FrameBuffer *buffer);
-	void converterOutputDone(FrameBuffer *buffer);
+	void conversionInputDone(FrameBuffer *buffer);
+	void conversionOutputDone(FrameBuffer *buffer);
+
+	void ispStatsReady(int dummy);
+	void setSensorControls(const ControlList &sensorControls);
 };
 
 class SimpleCameraConfiguration : public CameraConfiguration
@@ -308,6 +319,7 @@ private:
 
 	const SimpleCameraData::Configuration *pipeConfig_;
 	bool needConversion_;
+	bool needSwIsp_;
 	Transform combinedTransform_;
 };
 
@@ -503,9 +515,41 @@ int SimpleCameraData::init()
 				<< "Failed to create converter, disabling format conversion";
 			converter_.reset();
 		} else {
-			converter_->inputBufferReady.connect(this, &SimpleCameraData::converterInputDone);
-			converter_->outputBufferReady.connect(this, &SimpleCameraData::converterOutputDone);
+			converter_->inputBufferReady.connect(this, &SimpleCameraData::conversionInputDone);
+			converter_->outputBufferReady.connect(this, &SimpleCameraData::conversionOutputDone);
 		}
+	}
+
+	/*
+	 * Create Linaro's implementation of SoftwareIsp unconditionally if no converter is used
+	 * - to be revisited
+	 */
+	if (!converter_) {
+		swIsp_ = std::make_unique<SwIspLinaro>("linaro");
+		if (!swIsp_) {
+			LOG(SimplePipeline, Warning)
+				<< "Failed to create software ISP, disabling software debayering";
+			swIsp_.reset();
+		}
+		swIsp_->inputBufferReady.connect(this, &SimpleCameraData::conversionInputDone);
+		swIsp_->outputBufferReady.connect(this, &SimpleCameraData::conversionOutputDone);
+		swIsp_->ispStatsReady.connect(this, &SimpleCameraData::ispStatsReady);
+
+		/* Create Linaro's IPA for the SoftwareIsp - to be revisited */
+		ipa_ = IPAManager::createIPA<ipa::soft::IPAProxySoft>(pipe, 0, 0);
+		if (!ipa_) {
+			LOG(SimplePipeline, Warning) << "Creating IPA for software ISP failed";
+			return -ENOENT;
+		}
+		ret = ipa_->init(IPASettings{ "No cfg file", "No sensor model" },
+				 swIsp_->getStatsFD(),
+				 sensor_->controls());
+		if (ret) {
+			LOG(SimplePipeline, Warning) << "IPA init failed";
+			return ret;
+		}
+		ipa_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
+		ipa_->configure(sensor_->controls());
 	}
 
 	video_ = pipe->video(entities_.back().entity);
@@ -598,12 +642,15 @@ void SimpleCameraData::tryPipeline(unsigned int code, const Size &size)
 		config.captureFormat = pixelFormat;
 		config.captureSize = format.size;
 
-		if (!converter_) {
-			config.outputFormats = { pixelFormat };
-			config.outputSizes = config.captureSize;
-		} else {
+		if (converter_) {
 			config.outputFormats = converter_->formats(pixelFormat);
 			config.outputSizes = converter_->sizes(format.size);
+		} else if (swIsp_) {
+			config.outputFormats = swIsp_->formats(pixelFormat);
+			config.outputSizes = swIsp_->sizes(pixelFormat, format.size);
+		} else {
+			config.outputFormats = { pixelFormat };
+			config.outputSizes = config.captureSize;
 		}
 
 		configs_.push_back(config);
@@ -740,7 +787,7 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 	 * point converting an erroneous buffer.
 	 */
 	if (buffer->metadata().status != FrameMetadata::FrameSuccess) {
-		if (!useConverter_) {
+		if (!useConversion_) {
 			/* No conversion, just complete the request. */
 			Request *request = buffer->request();
 			pipe->completeBuffer(request, buffer);
@@ -749,23 +796,23 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 		}
 
 		/*
-		 * The converter is in use. Requeue the internal buffer for
+		 * The converter or Software ISP is in use. Requeue the internal buffer for
 		 * capture (unless the stream is being stopped), and complete
 		 * the request with all the user-facing buffers.
 		 */
 		if (buffer->metadata().status != FrameMetadata::FrameCancelled)
 			video_->queueBuffer(buffer);
 
-		if (converterQueue_.empty())
+		if (conversionQueue_.empty())
 			return;
 
 		Request *request = nullptr;
-		for (auto &item : converterQueue_.front()) {
+		for (auto &item : conversionQueue_.front()) {
 			FrameBuffer *outputBuffer = item.second;
 			request = outputBuffer->request();
 			pipe->completeBuffer(request, outputBuffer);
 		}
-		converterQueue_.pop();
+		conversionQueue_.pop();
 
 		if (request)
 			pipe->completeRequest(request);
@@ -782,9 +829,9 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 	 */
 	Request *request = buffer->request();
 
-	if (useConverter_ && !converterQueue_.empty()) {
+	if (useConversion_ && !conversionQueue_.empty()) {
 		const std::map<unsigned int, FrameBuffer *> &outputs =
-			converterQueue_.front();
+			conversionQueue_.front();
 		if (!outputs.empty()) {
 			FrameBuffer *outputBuffer = outputs.begin()->second;
 			if (outputBuffer)
@@ -797,18 +844,22 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 					buffer->metadata().timestamp);
 
 	/*
-	 * Queue the captured and the request buffer to the converter if format
-	 * conversion is needed. If there's no queued request, just requeue the
-	 * captured buffer for capture.
+	 * Queue the captured and the request buffer to the converter or Software ISP
+	 * if format conversion is needed. If there's no queued request, just requeue
+	 * the captured buffer for capture.
 	 */
-	if (useConverter_) {
-		if (converterQueue_.empty()) {
+	if (useConversion_) {
+		if (conversionQueue_.empty()) {
 			video_->queueBuffer(buffer);
 			return;
 		}
 
-		converter_->queueBuffers(buffer, converterQueue_.front());
-		converterQueue_.pop();
+		if (converter_)
+			converter_->queueBuffers(buffer, conversionQueue_.front());
+		else
+			swIsp_->queueBuffers(buffer, conversionQueue_.front());
+
+		conversionQueue_.pop();
 		return;
 	}
 
@@ -817,13 +868,13 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 	pipe->completeRequest(request);
 }
 
-void SimpleCameraData::converterInputDone(FrameBuffer *buffer)
+void SimpleCameraData::conversionInputDone(FrameBuffer *buffer)
 {
 	/* Queue the input buffer back for capture. */
 	video_->queueBuffer(buffer);
 }
 
-void SimpleCameraData::converterOutputDone(FrameBuffer *buffer)
+void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
 {
 	SimplePipelineHandler *pipe = SimpleCameraData::pipe();
 
@@ -831,6 +882,20 @@ void SimpleCameraData::converterOutputDone(FrameBuffer *buffer)
 	Request *request = buffer->request();
 	if (pipe->completeBuffer(request, buffer))
 		pipe->completeRequest(request);
+}
+
+void SimpleCameraData::ispStatsReady([[maybe_unused]] int dummy)
+{
+	if (!ipa_) return;
+
+	ipa_->processStats(sensor_->getControls( { V4L2_CID_ANALOGUE_GAIN,
+						   V4L2_CID_EXPOSURE } ) );
+}
+
+void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
+{
+	ControlList ctrls(sensorControls);
+	sensor_->setControls(&ctrls);
 }
 
 /* Retrieve all source pads connected to a sink pad through active routes. */
@@ -1012,8 +1077,12 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		/* Set the stride, frameSize and bufferCount. */
 		if (needConversion_) {
 			std::tie(cfg.stride, cfg.frameSize) =
+				(!!data_->converter_) ?
 				data_->converter_->strideAndFrameSize(cfg.pixelFormat,
-								      cfg.size);
+								      cfg.size)
+				:
+				data_->swIsp_->strideAndFrameSize(cfg.pixelFormat,
+								  cfg.size);
 			if (cfg.stride == 0)
 				return Invalid;
 		} else {
@@ -1156,14 +1225,14 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 
 	/* Configure the converter if needed. */
 	std::vector<std::reference_wrapper<StreamConfiguration>> outputCfgs;
-	data->useConverter_ = config->needConversion();
+	data->useConversion_ = config->needConversion();
 
 	for (unsigned int i = 0; i < config->size(); ++i) {
 		StreamConfiguration &cfg = config->at(i);
 
 		cfg.setStream(&data->streams_[i]);
 
-		if (data->useConverter_)
+		if (data->useConversion_)
 			outputCfgs.push_back(cfg);
 	}
 
@@ -1176,7 +1245,9 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	inputCfg.stride = captureFormat.planes[0].bpl;
 	inputCfg.bufferCount = kNumInternalBuffers;
 
-	return data->converter_->configure(inputCfg, outputCfgs);
+	return (data->converter_) ?
+		data->converter_->configure(inputCfg, outputCfgs) :
+		data->swIsp_->configure(inputCfg, outputCfgs);
 }
 
 int SimplePipelineHandler::exportFrameBuffers(Camera *camera, Stream *stream,
@@ -1189,9 +1260,13 @@ int SimplePipelineHandler::exportFrameBuffers(Camera *camera, Stream *stream,
 	 * Export buffers on the converter or capture video node, depending on
 	 * whether the converter is used or not.
 	 */
-	if (data->useConverter_)
-		return data->converter_->exportBuffers(data->streamIndex(stream),
-						       count, buffers);
+	if (data->useConversion_)
+		return (data->converter_) ?
+			data->converter_->exportBuffers(data->streamIndex(stream),
+							count, buffers)
+			:
+			data->swIsp_->exportBuffers(data->streamIndex(stream),
+							count, buffers);
 	else
 		return data->video_->exportBuffers(count, buffers);
 }
@@ -1210,13 +1285,13 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		return -EBUSY;
 	}
 
-	if (data->useConverter_) {
+	if (data->useConversion_) {
 		/*
 		 * When using the converter allocate a fixed number of internal
 		 * buffers.
 		 */
 		ret = video->allocateBuffers(kNumInternalBuffers,
-					     &data->converterBuffers_);
+					     &data->conversionBuffers_);
 	} else {
 		/* Otherwise, prepare for using buffers from the only stream. */
 		Stream *stream = &data->streams_[0];
@@ -1235,15 +1310,30 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		return ret;
 	}
 
-	if (data->useConverter_) {
-		ret = data->converter_->start();
-		if (ret < 0) {
-			stop(camera);
-			return ret;
+	if (data->useConversion_) {
+		if (data->converter_) {
+			ret = data->converter_->start();
+			if (ret < 0) {
+				stop(camera);
+				return ret;
+			}
+		} else if (data->swIsp_) {
+			if (data->ipa_)
+				ret = data->ipa_->start();
+			if (ret < 0) {
+				stop(camera);
+				return ret;
+			}
+			ret = data->swIsp_->start();
+			if (ret < 0) {
+				data->ipa_->stop();
+				stop(camera);
+				return ret;
+			}
 		}
 
 		/* Queue all internal buffers for capture. */
-		for (std::unique_ptr<FrameBuffer> &buffer : data->converterBuffers_)
+		for (std::unique_ptr<FrameBuffer> &buffer : data->conversionBuffers_)
 			video->queueBuffer(buffer.get());
 	}
 
@@ -1255,15 +1345,21 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
 
-	if (data->useConverter_)
-		data->converter_->stop();
+	if (data->useConversion_) {
+		if (data->converter_)
+			data->converter_->stop();
+		else if (data->swIsp_) {
+			data->swIsp_->stop();
+			data->ipa_->stop();
+		}
+	}
 
 	video->streamOff();
 	video->releaseBuffers();
 
 	video->bufferReady.disconnect(data, &SimpleCameraData::bufferReady);
 
-	data->converterBuffers_.clear();
+	data->conversionBuffers_.clear();
 
 	releasePipeline(data);
 }
@@ -1281,7 +1377,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		 * queue, it will be handed to the converter in the capture
 		 * completion handler.
 		 */
-		if (data->useConverter_) {
+		if (data->useConversion_) {
 			buffers.emplace(data->streamIndex(stream), buffer);
 		} else {
 			ret = data->video_->queueBuffer(buffer);
@@ -1290,8 +1386,8 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		}
 	}
 
-	if (data->useConverter_)
-		data->converterQueue_.push(std::move(buffers));
+	if (data->useConversion_)
+		data->conversionQueue_.push(std::move(buffers));
 
 	return 0;
 }

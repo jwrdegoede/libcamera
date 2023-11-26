@@ -337,12 +337,18 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 	/* check that:
 	 * - output format is valid
 	 * - output size matches the input size and is valid */
-	SizeRange outSizeRange = (*debayerInfo_->getOutSizes)(outputCfg.size);
+	SizeRange outSizeRange = (*debayerInfo_->getOutSizes)(inputCfg.size);
 	if (debayerInfo_->outPixelFmt != outputCfg.pixelFormat ||
 	    outputCfg.size.isNull() || !outSizeRange.contains(outputCfg.size) ||
 	    (*debayerInfo_->getOutStride)(outputCfg.size) != outputCfg.stride) {
 		LOG(SoftwareIsp, Error)
-			<< "Invalid output format/size/stride";
+			<< "Invalid output format/size/stride: "
+			<< "\n  " << outputCfg.pixelFormat << " ("
+			<< debayerInfo_->outPixelFmt << ")"
+			<< "\n  " << outputCfg.size << " ("
+			<< outSizeRange << ")"
+			<< "\n  " << outputCfg.stride << " ("
+			<< (*debayerInfo_->getOutStride)(outputCfg.size) << ")";
 		return -EINVAL;
 	}
 

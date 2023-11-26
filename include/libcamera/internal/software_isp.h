@@ -38,7 +38,7 @@ public:
 	virtual bool isValid() const = 0;
 
 	virtual std::vector<PixelFormat> formats(PixelFormat input) = 0;
-	virtual SizeRange sizes(const Size &input) = 0;
+	virtual SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) = 0;
 
 	virtual std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &pixelFormat, const Size &size) = 0;

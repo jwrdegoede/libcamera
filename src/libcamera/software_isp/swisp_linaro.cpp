@@ -57,9 +57,6 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 	static const unsigned int GREEN_Y_MUL = 150;	/* 0.59 * 256 */
 	static const unsigned int BLUE_Y_MUL = 29;	/* 0.11 * 256 */
 
-	int w_out = width_ - 2;
-	int h_out = height_ - 2;
-
 	unsigned long sumR = 0;
 	unsigned long sumB = 0;
 	unsigned long sumG = 0;
@@ -67,12 +64,12 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 	unsigned long bright_sum = 0;
 	unsigned long too_bright_sum = 0;
 
-	for (int y = 0; y < h_out; y++) {
+	for (unsigned int y = 0; y < outHeight_; y++) {
 		const uint8_t *pin_base = src + (y + 1) * stride_;
-		uint8_t *pout = dst + y * w_out * 3;
+		uint8_t *pout = dst + y * outStride_;
 		int phase_y = (y + redShift_.y) % 2;
 
-		for (int x = 0; x < w_out; x++) {
+		for (unsigned int x = 0; x < outWidth_; x++) {
 			int phase_x = (x + redShift_.x) % 2;
 			int phase = 2 * phase_y + phase_x;
 
@@ -186,8 +183,8 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 	}
 
 	/* calculate the fractions of "bright" and "too bright" pixels */
-	stats_.bright_ratio = (float)bright_sum / (h_out * w_out);
-	stats_.too_bright_ratio = (float)too_bright_sum / (h_out * w_out);
+	stats_.bright_ratio = (float)bright_sum / (outHeight_ * outWidth_);
+	stats_.too_bright_ratio = (float)too_bright_sum / (outHeight_ * outWidth_);
 {
 	static int xxx = 75;
 	if (--xxx == 0) {
@@ -375,6 +372,7 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 	}
 
 	outStride_ = outputCfg.stride;
+	outWidth_  = outputCfg.size.width;
 	outHeight_ = outputCfg.size.height;
 
 	LOG(SoftwareIsp, Info) << "SoftwareISP configuration: "

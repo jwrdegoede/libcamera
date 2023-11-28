@@ -102,6 +102,7 @@ private:
 		unsigned int height_;
 		unsigned int stride_;
 		Point redShift_;
+		unsigned int outWidth_;
 		unsigned int outHeight_;
 		unsigned int outStride_;
 

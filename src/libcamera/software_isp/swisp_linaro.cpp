@@ -183,6 +183,16 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 	too_bright_sum_ += too_bright_sum;
 }
 
+void SwIspLinaro::IspWorker::debayerRaw10PLine0(uint8_t *dst, const uint8_t *src)
+{
+	debayerRaw10PLine(dst, src, !redShift_.y);
+}
+
+void SwIspLinaro::IspWorker::debayerRaw10PLine1(uint8_t *dst, const uint8_t *src)
+{
+	debayerRaw10PLine(dst, src, redShift_.y);
+}
+
 void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 {
 	sumR_ = 0;
@@ -192,10 +202,12 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 	bright_sum_ = 0;
 	too_bright_sum_ = 0;
 
-	for (unsigned int y = 0; y < outHeight_; y++) {
-		debayerRaw10PLine(dst + y * outStride_,
-				  src + (y + 1) * stride_,
-				  (y + redShift_.y) % 2);
+	/* Debayering requires a 1 pixel border around the input, skip input line 0 */
+	for (unsigned int y = 1; y < outHeight_; y += 2) {
+		debayerRaw10PLine1(dst + (y - 1) * outStride_,
+				   src + y * stride_);
+		debayerRaw10PLine0(dst + y * outStride_,
+				   src + (y + 1) * stride_);
 	}
 
 	/* calculate the fractions of "bright" and "too bright" pixels */

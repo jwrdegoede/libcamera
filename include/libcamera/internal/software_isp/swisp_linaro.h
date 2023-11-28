@@ -89,6 +89,8 @@ private:
 
 		/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
 		void debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y);
+		void debayerRaw10PLine0(uint8_t *dst, const uint8_t *src);
+		void debayerRaw10PLine1(uint8_t *dst, const uint8_t *src);
 		void debayerRaw10P(uint8_t *dst, const uint8_t *src);
 		static SizeRange outSizesRaw10P(const Size &inSize);
 		static unsigned int outStrideRaw10P(const Size &outSize);

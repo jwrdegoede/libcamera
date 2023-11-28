@@ -71,6 +71,7 @@ private:
 		SwIspLinaro *swIsp_;
 
 		typedef void (SwIspLinaro::IspWorker::* debayerFn)(uint8_t *dst, const uint8_t *src);
+		typedef void (SwIspLinaro::IspWorker::* statsFn)(const uint8_t *src);
 		typedef void (SwIspLinaro::IspWorker::* finishStatsFn)(void);
 		typedef SizeRange (*outSizesFn)(const Size &inSize);
 		typedef unsigned int (* outStrideFn)(const Size &outSize);
@@ -79,6 +80,7 @@ private:
 			PixelFormat	outPixelFmt;
 			debayerFn	debayer0;
 			debayerFn	debayer1;
+			statsFn		stats0;
 			finishStatsFn	finishStats;
 			outSizesFn	getOutSizes;
 			outStrideFn	getOutStride;
@@ -94,6 +96,10 @@ private:
 		void debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y);
 		void debayerRaw10PLine0(uint8_t *dst, const uint8_t *src);
 		void debayerRaw10PLine1(uint8_t *dst, const uint8_t *src);
+		void statsBGGR10PLine0(const uint8_t *src);
+		void statsGBRG10PLine0(const uint8_t *src);
+		void statsGRBG10PLine0(const uint8_t *src);
+		void statsRGGB10PLine0(const uint8_t *src);
 		void finishRaw10PStats(void);
 		static SizeRange outSizesRaw10P(const Size &inSize);
 		static unsigned int outStrideRaw10P(const Size &outSize);

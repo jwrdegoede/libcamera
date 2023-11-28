@@ -193,23 +193,8 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine1(uint8_t *dst, const uint8_t *src
 	debayerRaw10PLine(dst, src, redShift_.y);
 }
 
-void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
+void SwIspLinaro::IspWorker::finishRaw10PStats(void)
 {
-	sumR_ = 0;
-	sumB_ = 0;
-	sumG_ = 0;
-
-	bright_sum_ = 0;
-	too_bright_sum_ = 0;
-
-	/* Debayering requires a 1 pixel border around the input, skip input line 0 */
-	for (unsigned int y = 1; y < outHeight_; y += 2) {
-		debayerRaw10PLine1(dst + (y - 1) * outStride_,
-				   src + y * stride_);
-		debayerRaw10PLine0(dst + y * outStride_,
-				   src + (y + 1) * stride_);
-	}
-
 	/* calculate the fractions of "bright" and "too bright" pixels */
 	stats_.bright_ratio = (float)bright_sum_ / (outHeight_ * outWidth_);
 	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_);
@@ -286,19 +271,27 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 	: swIsp_(swIsp)
 {
 	debayerInfos_[formats::SBGGR10_CSI2P] = { formats::RGB888,
-						  &SwIspLinaro::IspWorker::debayerRaw10P,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGBRG10_CSI2P] = { formats::RGB888,
-						  &SwIspLinaro::IspWorker::debayerRaw10P,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGRBG10_CSI2P] = { formats::RGB888,
-						  &SwIspLinaro::IspWorker::debayerRaw10P,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SRGGB10_CSI2P] = { formats::RGB888,
-						  &SwIspLinaro::IspWorker::debayerRaw10P,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
+						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 }
@@ -562,9 +555,31 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 		return;
 	}
 
-	(this->*debayerInfo_->debayer)(out.planes()[0].data(), in.planes()[0].data());
+	sumR_ = 0;
+	sumB_ = 0;
+	sumG_ = 0;
+
+	bright_sum_ = 0;
+	too_bright_sum_ = 0;
+
+	const uint8_t *src = in.planes()[0].data();
+	uint8_t *dst = out.planes()[0].data();
+
+	/* Skip first 4 lines for debayer interpolation purposes */
+	src += stride_ * 4;
+	int lines = outHeight_ / 2;
+	while (lines--) {
+		(this->*debayerInfo_->debayer0)(dst, src);
+		src += stride_;
+		dst += outStride_;
+		(this->*debayerInfo_->debayer1)(dst, src);
+		src += stride_;
+		dst += outStride_;
+	}
+
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
+	(this->*debayerInfo_->finishStats)();
 	*swIsp_->sharedStats_ = stats_;
 	swIsp_->ispStatsReady.emit(0);
 

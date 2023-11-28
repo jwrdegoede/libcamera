@@ -47,7 +47,7 @@ bool SwIspLinaro::isValid() const
 	return !!ispWorker_;
 }
 
-void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
+void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y)
 {
 	/* for brightness values in the 0 to 255 range: */
 	static const unsigned int BRIGHT_LVL = 200U << 8;
@@ -64,127 +64,144 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 	unsigned long bright_sum = 0;
 	unsigned long too_bright_sum = 0;
 
-	for (unsigned int y = 0; y < outHeight_; y++) {
-		const uint8_t *pin_base = src + (y + 1) * stride_;
-		uint8_t *pout = dst + y * outStride_;
-		int phase_y = (y + redShift_.y) % 2;
+	for (unsigned int x = 0; x < outWidth_; x++) {
+		int phase_x = (x + redShift_.x) % 2;
+		int phase = 2 * phase_y + phase_x;
 
-		for (unsigned int x = 0; x < outWidth_; x++) {
-			int phase_x = (x + redShift_.x) % 2;
-			int phase = 2 * phase_y + phase_x;
+		/* x part of the offset in the input buffer: */
+		int x_m1 = x + x / 4;		/* offset for (x-1) */
+		int x_0 = x + 1 + (x + 1) / 4;	/* offset for x */
+		int x_p1 = x + 2 + (x + 2) / 4;	/* offset for (x+1) */
+		/* the colour component value to write to the output */
+		unsigned val;
+		/* Y value times 256 */
+		unsigned y_val;
 
-			/* x part of the offset in the input buffer: */
-			int x_m1 = x + x / 4;		/* offset for (x-1) */
-			int x_0 = x + 1 + (x + 1) / 4;	/* offset for x */
-			int x_p1 = x + 2 + (x + 2) / 4;	/* offset for (x+1) */
-			/* the colour component value to write to the output */
-			unsigned val;
-			/* Y value times 256 */
-			unsigned y_val;
-
-			switch (phase) {
-			case 0: /* at R pixel */
-				/* blue: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
-				val = ( *(pin_base + x_m1 - stride_)
-					+ *(pin_base + x_p1 - stride_)
-					+ *(pin_base + x_m1 + stride_)
-					+ *(pin_base + x_p1 + stride_) ) >> 2;
-				y_val = BLUE_Y_MUL * val;
-				val = val * bNumerat_ / bDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
-				val = ( *(pin_base + x_0 - stride_)
-					+ *(pin_base + x_p1)
-					+ *(pin_base + x_m1)
-					+ *(pin_base + x_0 + stride_) ) >> 2;
-				val = val * gNumerat_ / gDenomin_;
-				y_val += GREEN_Y_MUL * val;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* red: (0,0) */
-				val = *(pin_base + x_0);
-				sumR += val;
-				y_val += RED_Y_MUL * val;
-				if (y_val > BRIGHT_LVL) ++bright_sum;
-				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
-				val = val * rNumerat_ / rDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				break;
-			case 1: /* at Gr pixel */
-				/* blue: ((0,-1) + (0,1)) / 2 */
-				val = ( *(pin_base + x_0 - stride_)
-					+ *(pin_base + x_0 + stride_) ) >> 1;
-				y_val = BLUE_Y_MUL * val;
-				val = val * bNumerat_ / bDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* green: (0,0) */
-				val = *(pin_base + x_0);
-				sumG += val;
-				y_val += GREEN_Y_MUL * val;
-				val = val * gNumerat_ / gDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* red: ((-1,0) + (1,0)) / 2 */
-				val = ( *(pin_base + x_m1)
-					+ *(pin_base + x_p1) ) >> 1;
-				y_val += RED_Y_MUL * val;
-				if (y_val > BRIGHT_LVL) ++bright_sum;
-				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
-				val = val * rNumerat_ / rDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				break;
-			case 2: /* at Gb pixel */
-				/* blue: ((-1,0) + (1,0)) / 2 */
-				val = ( *(pin_base + x_m1)
-					+ *(pin_base + x_p1) ) >> 1;
-				y_val = BLUE_Y_MUL * val;
-				val = val * bNumerat_ / bDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* green: (0,0) */
-				val = *(pin_base + x_0);
-				sumG += val;
-				y_val += GREEN_Y_MUL * val;
-				val = val * gNumerat_ / gDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* red: ((0,-1) + (0,1)) / 2 */
-				val = ( *(pin_base + x_0 - stride_)
-					+ *(pin_base + x_0 + stride_) ) >> 1;
-				y_val += RED_Y_MUL * val;
-				if (y_val > BRIGHT_LVL) ++bright_sum;
-				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
-				val = val * rNumerat_ / rDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				break;
-			default: /* at B pixel */
-				/* blue: (0,0) */
-				val = *(pin_base + x_0);
-				sumB += val;
-				y_val = BLUE_Y_MUL * val;
-				val = val * bNumerat_ / bDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
-				val = ( *(pin_base + x_0 - stride_)
-					+ *(pin_base + x_p1)
-					+ *(pin_base + x_m1)
-					+ *(pin_base + x_0 + stride_) ) >> 2;
-				y_val += GREEN_Y_MUL * val;
-				val = val * gNumerat_ / gDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-				/* red: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
-				val = ( *(pin_base + x_m1 - stride_)
-					+ *(pin_base + x_p1 - stride_)
-					+ *(pin_base + x_m1 + stride_)
-					+ *(pin_base + x_p1 + stride_) ) >> 2;
-				y_val += RED_Y_MUL * val;
-				if (y_val > BRIGHT_LVL) ++bright_sum;
-				if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
-				val = val * rNumerat_ / rDenomin_;
-				*pout++ = (uint8_t)std::min(val, 0xffU);
-			}
+		switch (phase) {
+		case 0: /* at R pixel */
+			/* blue: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
+			val = ( *(src + x_m1 - stride_)
+				+ *(src + x_p1 - stride_)
+				+ *(src + x_m1 + stride_)
+				+ *(src + x_p1 + stride_) ) >> 2;
+			y_val = BLUE_Y_MUL * val;
+			val = val * bNumerat_ / bDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
+			val = ( *(src + x_0 - stride_)
+				+ *(src + x_p1)
+				+ *(src + x_m1)
+				+ *(src + x_0 + stride_) ) >> 2;
+			val = val * gNumerat_ / gDenomin_;
+			y_val += GREEN_Y_MUL * val;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* red: (0,0) */
+			val = *(src + x_0);
+			sumR += val;
+			y_val += RED_Y_MUL * val;
+			if (y_val > BRIGHT_LVL) ++bright_sum;
+			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
+			val = val * rNumerat_ / rDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			break;
+		case 1: /* at Gr pixel */
+			/* blue: ((0,-1) + (0,1)) / 2 */
+			val = ( *(src + x_0 - stride_)
+				+ *(src + x_0 + stride_) ) >> 1;
+			y_val = BLUE_Y_MUL * val;
+			val = val * bNumerat_ / bDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* green: (0,0) */
+			val = *(src + x_0);
+			sumG += val;
+			y_val += GREEN_Y_MUL * val;
+			val = val * gNumerat_ / gDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* red: ((-1,0) + (1,0)) / 2 */
+			val = ( *(src + x_m1)
+				+ *(src + x_p1) ) >> 1;
+			y_val += RED_Y_MUL * val;
+			if (y_val > BRIGHT_LVL) ++bright_sum;
+			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
+			val = val * rNumerat_ / rDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			break;
+		case 2: /* at Gb pixel */
+			/* blue: ((-1,0) + (1,0)) / 2 */
+			val = ( *(src + x_m1)
+				+ *(src + x_p1) ) >> 1;
+			y_val = BLUE_Y_MUL * val;
+			val = val * bNumerat_ / bDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* green: (0,0) */
+			val = *(src + x_0);
+			sumG += val;
+			y_val += GREEN_Y_MUL * val;
+			val = val * gNumerat_ / gDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* red: ((0,-1) + (0,1)) / 2 */
+			val = ( *(src + x_0 - stride_)
+				+ *(src + x_0 + stride_) ) >> 1;
+			y_val += RED_Y_MUL * val;
+			if (y_val > BRIGHT_LVL) ++bright_sum;
+			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
+			val = val * rNumerat_ / rDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			break;
+		default: /* at B pixel */
+			/* blue: (0,0) */
+			val = *(src + x_0);
+			sumB += val;
+			y_val = BLUE_Y_MUL * val;
+			val = val * bNumerat_ / bDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
+			val = ( *(src + x_0 - stride_)
+				+ *(src + x_p1)
+				+ *(src + x_m1)
+				+ *(src + x_0 + stride_) ) >> 2;
+			y_val += GREEN_Y_MUL * val;
+			val = val * gNumerat_ / gDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
+			/* red: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
+			val = ( *(src + x_m1 - stride_)
+				+ *(src + x_p1 - stride_)
+				+ *(src + x_m1 + stride_)
+				+ *(src + x_p1 + stride_) ) >> 2;
+			y_val += RED_Y_MUL * val;
+			if (y_val > BRIGHT_LVL) ++bright_sum;
+			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
+			val = val * rNumerat_ / rDenomin_;
+			*dst++ = (uint8_t)std::min(val, 0xffU);
 		}
 	}
 
+	sumR_ += sumR;
+	sumG_ += sumG;
+	sumB_ += sumB;
+
+	bright_sum_ += bright_sum;
+	too_bright_sum_ += too_bright_sum;
+}
+
+void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
+{
+	sumR_ = 0;
+	sumB_ = 0;
+	sumG_ = 0;
+
+	bright_sum_ = 0;
+	too_bright_sum_ = 0;
+
+	for (unsigned int y = 0; y < outHeight_; y++) {
+		debayerRaw10PLine(dst + y * outStride_,
+				  src + (y + 1) * stride_,
+				  (y + redShift_.y) % 2);
+	}
+
 	/* calculate the fractions of "bright" and "too bright" pixels */
-	stats_.bright_ratio = (float)bright_sum / (outHeight_ * outWidth_);
-	stats_.too_bright_ratio = (float)too_bright_sum / (outHeight_ * outWidth_);
+	stats_.bright_ratio = (float)bright_sum_ / (outHeight_ * outWidth_);
+	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_);
 {
 	static int xxx = 75;
 	if (--xxx == 0) {
@@ -197,33 +214,33 @@ void SwIspLinaro::IspWorker::debayerRaw10P(uint8_t *dst, const uint8_t *src)
 
 	/* calculate red and blue gains for simple AWB */
 	LOG(SoftwareIsp, Debug)
-		<< "sumR = " << sumR << ", sumB = " << sumB << ", sumG = " << sumG;
+		<< "sumR = " << sumR_ << ", sumB = " << sumB_ << ", sumG = " << sumG_;
 
-	sumG /= 2; /* the number of G pixels is twice as big vs R and B ones */
+	sumG_ /= 2; /* the number of G pixels is twice as big vs R and B ones */
 
 	/* normalize red, blue, and green sums to fit into 22-bit value */
-	unsigned long fRed = sumR / 0x400000;
-	unsigned long fBlue = sumB / 0x400000;
-	unsigned long fGreen = sumG / 0x400000;
+	unsigned long fRed = sumR_ / 0x400000;
+	unsigned long fBlue = sumB_ / 0x400000;
+	unsigned long fGreen = sumG_ / 0x400000;
 	unsigned long fNorm = std::max({ 1UL, fRed, fBlue, fGreen });
-	sumR /= fNorm;
-	sumB /= fNorm;
-	sumG /= fNorm;
+	sumR_ /= fNorm;
+	sumB_ /= fNorm;
+	sumG_ /= fNorm;
 
 	LOG(SoftwareIsp, Debug) << "fNorm = " << fNorm;
 	LOG(SoftwareIsp, Debug)
-		<< "Normalized: sumR = " << sumR
-		<< ", sumB= " << sumB << ", sumG = " << sumG;
+		<< "Normalized: sumR = " << sumR_
+		<< ", sumB= " << sumB_ << ", sumG = " << sumG_;
 
 	/* make sure red/blue gains never exceed approximately 256 */
 	unsigned long minDenom;
-	rNumerat_ = (sumR + sumB + sumG) / 3;
+	rNumerat_ = (sumR_ + sumB_ + sumG_) / 3;
 	minDenom = rNumerat_ / 0x100;
-	rDenomin_ = std::max(minDenom, sumR);
+	rDenomin_ = std::max(minDenom, sumR_);
 	bNumerat_ = rNumerat_;
-	bDenomin_ = std::max(minDenom, sumB);
+	bDenomin_ = std::max(minDenom, sumB_);
 	gNumerat_ = rNumerat_;
-	gDenomin_ = std::max(minDenom, sumG);
+	gDenomin_ = std::max(minDenom, sumG_);
 
 	LOG(SoftwareIsp, Debug)
 		<< "rGain = [ " << rNumerat_ << " / " << rDenomin_

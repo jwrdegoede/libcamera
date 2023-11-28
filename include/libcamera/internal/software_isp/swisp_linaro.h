@@ -88,6 +88,7 @@ private:
 		debayerInfo *debayerInfo_;
 
 		/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
+		void debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y);
 		void debayerRaw10P(uint8_t *dst, const uint8_t *src);
 		static SizeRange outSizesRaw10P(const Size &inSize);
 		static unsigned int outStrideRaw10P(const Size &outSize);
@@ -109,6 +110,13 @@ private:
 		unsigned long rNumerat_, rDenomin_; /* red gain for AWB */
 		unsigned long bNumerat_, bDenomin_; /* blue gain for AWB */
 		unsigned long gNumerat_, gDenomin_; /* green gain for AWB */
+
+		unsigned long sumR_;
+		unsigned long sumB_;
+		unsigned long sumG_;
+
+		unsigned long bright_sum_;
+		unsigned long too_bright_sum_;
 
 		SwIspStats stats_;
 	};

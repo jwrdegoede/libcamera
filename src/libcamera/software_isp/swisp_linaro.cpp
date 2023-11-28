@@ -46,23 +46,166 @@ bool SwIspLinaro::isValid() const
 	return !!ispWorker_;
 }
 
-void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y)
-{
-	/* for brightness values in the 0 to 255 range: */
-	static const unsigned int BRIGHT_LVL = 200U << 8;
-	static const unsigned int TOO_BRIGHT_LVL = 240U << 8;
+/* for brightness values in the 0 to 255 range: */
+static const unsigned int BRIGHT_LVL = 200U << 8;
+static const unsigned int TOO_BRIGHT_LVL = 240U << 8;
 
-	static const unsigned int RED_Y_MUL = 77;	/* 0.30 * 256 */
-	static const unsigned int GREEN_Y_MUL = 150;	/* 0.59 * 256 */
-	static const unsigned int BLUE_Y_MUL = 29;	/* 0.11 * 256 */
+static const unsigned int RED_Y_MUL = 77;		/* 0.30 * 256 */
+static const unsigned int GREEN_Y_MUL = 150 / 2;	/* 0.59 * 256 */
+static const unsigned int BLUE_Y_MUL = 29;		/* 0.11 * 256 */
 
-	unsigned long sumR = 0;
-	unsigned long sumB = 0;
-	unsigned long sumG = 0;
-
-	unsigned long bright_sum = 0;
+/*
+ * These need to be macros because it accesses a whole bunch of local
+ * variables (and copy and pasting this x times is undesirable)
+ */
+#define SWISP_LINARO_START_LINE_STATS()			\
+	uint8_t r, g1, g2, b;				\
+	unsigned int y_val;				\
+							\
+	unsigned long sumR = 0;				\
+	unsigned long sumG = 0;				\
+	unsigned long sumB = 0;				\
+							\
+	unsigned long bright_sum = 0;			\
 	unsigned long too_bright_sum = 0;
 
+#define SWISP_LINARO_ACCUMULATE_LINE_STATS()		\
+	sumR += r;					\
+	sumG += g1 + g2;				\
+	sumB += b;					\
+							\
+	y_val = r * RED_Y_MUL;				\
+	y_val += (g1 + g2) * GREEN_Y_MUL;		\
+	y_val += b * BLUE_Y_MUL;			\
+	if (y_val > BRIGHT_LVL) ++bright_sum;		\
+	if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
+
+#define SWISP_LINARO_FINISH_LINE_STATS()		\
+	sumR_ += sumR;					\
+	sumG_ += sumG;					\
+	sumB_ += sumB;					\
+							\
+	bright_sum_ += bright_sum;			\
+	too_bright_sum_ += too_bright_sum;
+
+void SwIspLinaro::IspWorker::statsBGGR10PLine0(const uint8_t *src0)
+{
+	const int width_in_bytes = width_ * 5 / 4;
+	const uint8_t *src1 = src0 + stride_;
+
+	SWISP_LINARO_START_LINE_STATS()
+
+	for (int x = 0; x < width_in_bytes; x += 3) {
+		/* BGGR */
+		b  = src0[x];
+		g1 = src0[x + 1];
+		g2 = src1[x];
+		r  = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+
+		x += 2;
+
+		/* BGGR */
+		b  = src0[x];
+		g1 = src0[x + 1];
+		g2 = src1[x];
+		r  = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+	}
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
+void SwIspLinaro::IspWorker::statsGBRG10PLine0(const uint8_t *src0)
+{
+	const int width_in_bytes = width_ * 5 / 4;
+	const uint8_t *src1 = src0 + stride_;
+
+	SWISP_LINARO_START_LINE_STATS()
+
+	for (int x = 0; x < width_in_bytes; x += 3) {
+		/* GBRG */
+		g1 = src0[x];
+		b  = src0[x + 1];
+		r  = src1[x];
+		g2 = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+
+		x += 2;
+
+		/* GBRG */
+		g1 = src0[x];
+		b  = src0[x + 1];
+		r  = src1[x];
+		g2 = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+	}
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
+void SwIspLinaro::IspWorker::statsGRBG10PLine0(const uint8_t *src0)
+{
+	const int width_in_bytes = width_ * 5 / 4;
+	const uint8_t *src1 = src0 + stride_;
+
+	SWISP_LINARO_START_LINE_STATS()
+
+	for (int x = 0; x < width_in_bytes; x += 3) {
+		/* GRBG */
+		g1 = src0[x];
+		r  = src0[x + 1];
+		b  = src1[x];
+		g2 = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+
+		x += 2;
+
+		/* GRBG */
+		g1 = src0[x];
+		r  = src0[x + 1];
+		b  = src1[x];
+		g2 = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+	}
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
+void SwIspLinaro::IspWorker::statsRGGB10PLine0(const uint8_t *src0)
+{
+	const int width_in_bytes = width_ * 5 / 4;
+	const uint8_t *src1 = src0 + stride_;
+
+	SWISP_LINARO_START_LINE_STATS()
+
+	for (int x = 0; x < width_in_bytes; x += 3) {
+		/* RGGB */
+		r  = src0[x];
+		g1 = src0[x + 1];
+		g2 = src1[x];
+		b  = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+
+		x += 2;
+
+		/* RGGB */
+		r  = src0[x];
+		g1 = src0[x + 1];
+		g2 = src1[x];
+		b  = src1[x + 1];
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS()
+	}
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
+void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y)
+{
 	for (unsigned int x = 0; x < outWidth_; x++) {
 		int phase_x = (x + redShift_.x) % 2;
 		int phase = 2 * phase_y + phase_x;
@@ -73,8 +216,6 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 		int x_p1 = x + 2 + (x + 2) / 4;	/* offset for (x+1) */
 		/* the colour component value to write to the output */
 		unsigned val;
-		/* Y value times 256 */
-		unsigned y_val;
 
 		switch (phase) {
 		case 0: /* at R pixel */
@@ -83,7 +224,6 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 				+ *(src + x_p1 - stride_)
 				+ *(src + x_m1 + stride_)
 				+ *(src + x_p1 + stride_) ) >> 2;
-			y_val = BLUE_Y_MUL * val;
 			val = val * bNumerat_ / bDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
@@ -92,14 +232,9 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 				+ *(src + x_m1)
 				+ *(src + x_0 + stride_) ) >> 2;
 			val = val * gNumerat_ / gDenomin_;
-			y_val += GREEN_Y_MUL * val;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* red: (0,0) */
 			val = *(src + x_0);
-			sumR += val;
-			y_val += RED_Y_MUL * val;
-			if (y_val > BRIGHT_LVL) ++bright_sum;
-			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 			val = val * rNumerat_ / rDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			break;
@@ -107,21 +242,15 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 			/* blue: ((0,-1) + (0,1)) / 2 */
 			val = ( *(src + x_0 - stride_)
 				+ *(src + x_0 + stride_) ) >> 1;
-			y_val = BLUE_Y_MUL * val;
 			val = val * bNumerat_ / bDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* green: (0,0) */
 			val = *(src + x_0);
-			sumG += val;
-			y_val += GREEN_Y_MUL * val;
 			val = val * gNumerat_ / gDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* red: ((-1,0) + (1,0)) / 2 */
 			val = ( *(src + x_m1)
 				+ *(src + x_p1) ) >> 1;
-			y_val += RED_Y_MUL * val;
-			if (y_val > BRIGHT_LVL) ++bright_sum;
-			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 			val = val * rNumerat_ / rDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			break;
@@ -129,29 +258,21 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 			/* blue: ((-1,0) + (1,0)) / 2 */
 			val = ( *(src + x_m1)
 				+ *(src + x_p1) ) >> 1;
-			y_val = BLUE_Y_MUL * val;
 			val = val * bNumerat_ / bDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* green: (0,0) */
 			val = *(src + x_0);
-			sumG += val;
-			y_val += GREEN_Y_MUL * val;
 			val = val * gNumerat_ / gDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* red: ((0,-1) + (0,1)) / 2 */
 			val = ( *(src + x_0 - stride_)
 				+ *(src + x_0 + stride_) ) >> 1;
-			y_val += RED_Y_MUL * val;
-			if (y_val > BRIGHT_LVL) ++bright_sum;
-			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 			val = val * rNumerat_ / rDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			break;
 		default: /* at B pixel */
 			/* blue: (0,0) */
 			val = *(src + x_0);
-			sumB += val;
-			y_val = BLUE_Y_MUL * val;
 			val = val * bNumerat_ / bDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
@@ -159,7 +280,6 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 				+ *(src + x_p1)
 				+ *(src + x_m1)
 				+ *(src + x_0 + stride_) ) >> 2;
-			y_val += GREEN_Y_MUL * val;
 			val = val * gNumerat_ / gDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 			/* red: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
@@ -167,20 +287,10 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 				+ *(src + x_p1 - stride_)
 				+ *(src + x_m1 + stride_)
 				+ *(src + x_p1 + stride_) ) >> 2;
-			y_val += RED_Y_MUL * val;
-			if (y_val > BRIGHT_LVL) ++bright_sum;
-			if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
 			val = val * rNumerat_ / rDenomin_;
 			*dst++ = (uint8_t)std::min(val, 0xffU);
 		}
 	}
-
-	sumR_ += sumR;
-	sumG_ += sumG;
-	sumB_ += sumB;
-
-	bright_sum_ += bright_sum;
-	too_bright_sum_ += too_bright_sum;
 }
 
 void SwIspLinaro::IspWorker::debayerRaw10PLine0(uint8_t *dst, const uint8_t *src)
@@ -196,8 +306,8 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine1(uint8_t *dst, const uint8_t *src
 void SwIspLinaro::IspWorker::finishRaw10PStats(void)
 {
 	/* calculate the fractions of "bright" and "too bright" pixels */
-	stats_.bright_ratio = (float)bright_sum_ / (outHeight_ * outWidth_);
-	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_);
+	stats_.bright_ratio = (float)bright_sum_ / (outHeight_ * outWidth_ / 4);
+	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_ / 4);
 
 	/* calculate red and blue gains for simple AWB */
 	LOG(SoftwareIsp, Debug)
@@ -273,24 +383,28 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 	debayerInfos_[formats::SBGGR10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::statsBGGR10PLine0,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGBRG10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::statsGBRG10PLine0,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGRBG10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::statsGRBG10PLine0,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SRGGB10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
 						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::statsRGGB10PLine0,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
@@ -569,9 +683,11 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 	src += stride_ * 4;
 	int lines = outHeight_ / 2;
 	while (lines--) {
+		(this->*debayerInfo_->stats0)(src);
 		(this->*debayerInfo_->debayer0)(dst, src);
 		src += stride_;
 		dst += outStride_;
+
 		(this->*debayerInfo_->debayer1)(dst, src);
 		src += stride_;
 		dst += outStride_;

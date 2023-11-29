@@ -110,9 +110,9 @@ private:
 		unsigned int outHeight_;
 		unsigned int outStride_;
 
-		unsigned long rNumerat_, rDenomin_; /* red gain for AWB */
-		unsigned long bNumerat_, bDenomin_; /* blue gain for AWB */
-		unsigned long gNumerat_, gDenomin_; /* green gain for AWB */
+		unsigned long rNumerat_; /* red gain for AWB */
+		unsigned long bNumerat_; /* blue gain for AWB */
+		unsigned long gNumerat_; /* green gain for AWB */
 
 		unsigned long sumR_;
 		unsigned long sumB_;

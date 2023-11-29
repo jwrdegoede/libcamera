@@ -225,71 +225,59 @@ void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src,
 				+ *(src + x_p1 - stride_)
 				+ *(src + x_m1 + stride_)
 				+ *(src + x_p1 + stride_) ) >> 2;
-			val = val * bNumerat_ / bDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * bNumerat_ / 256UL;
 			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
 			val = ( *(src + x_0 - stride_)
 				+ *(src + x_p1)
 				+ *(src + x_m1)
 				+ *(src + x_0 + stride_) ) >> 2;
-			val = val * gNumerat_ / gDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * gNumerat_ / 256UL;
 			/* red: (0,0) */
 			val = *(src + x_0);
-			val = val * rNumerat_ / rDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * rNumerat_ / 256UL;
 			break;
 		case 1: /* at Gr pixel */
 			/* blue: ((0,-1) + (0,1)) / 2 */
 			val = ( *(src + x_0 - stride_)
 				+ *(src + x_0 + stride_) ) >> 1;
-			val = val * bNumerat_ / bDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * bNumerat_ / 256UL;
 			/* green: (0,0) */
 			val = *(src + x_0);
-			val = val * gNumerat_ / gDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * gNumerat_ / 256UL;
 			/* red: ((-1,0) + (1,0)) / 2 */
 			val = ( *(src + x_m1)
 				+ *(src + x_p1) ) >> 1;
-			val = val * rNumerat_ / rDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * rNumerat_ / 256UL;
 			break;
 		case 2: /* at Gb pixel */
 			/* blue: ((-1,0) + (1,0)) / 2 */
 			val = ( *(src + x_m1)
 				+ *(src + x_p1) ) >> 1;
-			val = val * bNumerat_ / bDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * bNumerat_ / 256UL;
 			/* green: (0,0) */
 			val = *(src + x_0);
-			val = val * gNumerat_ / gDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * gNumerat_ / 256UL;
 			/* red: ((0,-1) + (0,1)) / 2 */
 			val = ( *(src + x_0 - stride_)
 				+ *(src + x_0 + stride_) ) >> 1;
-			val = val * rNumerat_ / rDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * rNumerat_ / 256UL;
 			break;
 		default: /* at B pixel */
 			/* blue: (0,0) */
 			val = *(src + x_0);
-			val = val * bNumerat_ / bDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * bNumerat_ / 256UL;
 			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
 			val = ( *(src + x_0 - stride_)
 				+ *(src + x_p1)
 				+ *(src + x_m1)
 				+ *(src + x_0 + stride_) ) >> 2;
-			val = val * gNumerat_ / gDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * gNumerat_ / 256UL;
 			/* red: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
 			val = ( *(src + x_m1 - stride_)
 				+ *(src + x_p1 - stride_)
 				+ *(src + x_m1 + stride_)
 				+ *(src + x_p1 + stride_) ) >> 2;
-			val = val * rNumerat_ / rDenomin_;
-			*dst++ = (uint8_t)std::min(val, 0xffU);
+			*dst++ = val * rNumerat_ / 256UL;
 		}
 	}
 }
@@ -309,6 +297,16 @@ void SwIspLinaro::IspWorker::finishRaw10PStats(void)
 	/* calculate the fractions of "bright" and "too bright" pixels */
 	stats_.bright_ratio = (float)bright_sum_ / (outHeight_ * outWidth_ / 4);
 	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_ / 4);
+
+	/* calculate red and blue gains for simple AWB */
+	sumG_ /= 2; /* the number of G pixels is twice as big vs R and B ones */
+
+	unsigned long sumMin = std::min({ sumR_, sumG_, sumB_ });
+
+	rNumerat_ = 256UL * sumMin / sumR_;
+	gNumerat_ = 256UL * sumMin / sumG_;
+	bNumerat_ = 256UL * sumMin / sumB_;
+
 {
 	static int xxx = 75;
 	if (--xxx == 0) {
@@ -316,44 +314,14 @@ void SwIspLinaro::IspWorker::finishRaw10PStats(void)
 	LOG(SoftwareIsp, Info)
 		<< "bright_ratio_ = " << stats_.bright_ratio
 		<< ", too_bright_ratio_ = " << stats_.too_bright_ratio;
+	LOG(SoftwareIsp, Info)
+		<< "sumR = " << sumR_ << ", sumB = " << sumB_ << ", sumG = " << sumG_;
+	LOG(SoftwareIsp, Info)
+		<< "rGain = [ " << rNumerat_ << " / 256 ], "
+		<< "bGain = [ " << bNumerat_ << " / 256 ], "
+		<< "gGain = [ " << gNumerat_ << " / 256 ], ";
 	}
 }
-
-	/* calculate red and blue gains for simple AWB */
-	LOG(SoftwareIsp, Debug)
-		<< "sumR = " << sumR_ << ", sumB = " << sumB_ << ", sumG = " << sumG_;
-
-	sumG_ /= 2; /* the number of G pixels is twice as big vs R and B ones */
-
-	/* normalize red, blue, and green sums to fit into 22-bit value */
-	unsigned long fRed = sumR_ / 0x400000;
-	unsigned long fBlue = sumB_ / 0x400000;
-	unsigned long fGreen = sumG_ / 0x400000;
-	unsigned long fNorm = std::max({ 1UL, fRed, fBlue, fGreen });
-	sumR_ /= fNorm;
-	sumB_ /= fNorm;
-	sumG_ /= fNorm;
-
-	LOG(SoftwareIsp, Debug) << "fNorm = " << fNorm;
-	LOG(SoftwareIsp, Debug)
-		<< "Normalized: sumR = " << sumR_
-		<< ", sumB= " << sumB_ << ", sumG = " << sumG_;
-
-	/* make sure red/blue gains never exceed approximately 256 */
-	unsigned long minDenom;
-	rNumerat_ = (sumR_ + sumB_ + sumG_) / 3;
-	minDenom = rNumerat_ / 0x100;
-	rDenomin_ = std::max(minDenom, sumR_);
-	bNumerat_ = rNumerat_;
-	bDenomin_ = std::max(minDenom, sumB_);
-	gNumerat_ = rNumerat_;
-	gDenomin_ = std::max(minDenom, sumG_);
-
-	LOG(SoftwareIsp, Debug)
-		<< "rGain = [ " << rNumerat_ << " / " << rDenomin_
-		<< " ], bGain = [ " << bNumerat_ << " / " << bDenomin_
-		<< " ], gGain = [ " << gNumerat_ << " / " << gDenomin_
-		<< " (minDenom = " << minDenom << ")";
 }
 
 SizeRange SwIspLinaro::IspWorker::outSizesRaw10P(const Size &inSize)
@@ -531,9 +499,9 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 		<< outputCfg.size << "-" << outputCfg.pixelFormat;
 
 	/* set r/g/b gains to 1.0 until frame data collected */
-	rNumerat_ = rDenomin_ = 1;
-	bNumerat_ = bDenomin_ = 1;
-	gNumerat_ = gDenomin_ = 1;
+	rNumerat_ = 256;
+	bNumerat_ = 256;
+	gNumerat_ = 256;
 
 	return 0;
 }

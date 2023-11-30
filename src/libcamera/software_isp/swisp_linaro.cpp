@@ -295,91 +295,90 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine1(uint8_t *dst, const uint8_t *sr
 	}
 }
 
-void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y)
+void SwIspLinaro::IspWorker::debayerGBRG10PLine0(uint8_t *dst, const uint8_t *src)
 {
-	for (unsigned int x = 0; x < outWidth_; x++) {
-		int phase_x = (x + redShift_.x) % 2;
-		int phase = 2 * phase_y + phase_x;
+	const int width_in_bytes = 5 + width_ * 5 / 4;
+	/* Pointers to previous, current and next lines */
+	const uint8_t *prev = src - stride_;
+	const uint8_t *curr = src;
+	const uint8_t *next = src - stride_;
 
-		/* x part of the offset in the input buffer: */
-		int x_m1 = x + x / 4;		/* offset for (x-1) */
-		int x_0 = x + 1 + (x + 1) / 4;	/* offset for x */
-		int x_p1 = x + 2 + (x + 2) / 4;	/* offset for (x+1) */
-		/* the colour component value to write to the output */
-		unsigned val;
+	for (int x = 5; x < width_in_bytes; x += 2) {
+		/*
+		 * GBGB line even pixel: GRG
+		 *                       BGB
+		 *                       GRG
+		 * Write BGR
+		 */
+		*dst++ = (curr[x - 2] + curr[x + 1]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		x++;
 
-		switch (phase) {
-		case 0: /* at R pixel */
-			/* blue: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
-			val = ( *(src + x_m1 - stride_)
-				+ *(src + x_p1 - stride_)
-				+ *(src + x_m1 + stride_)
-				+ *(src + x_p1 + stride_) ) >> 2;
-			*dst++ = val * bNumerat_ / 256UL;
-			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
-			val = ( *(src + x_0 - stride_)
-				+ *(src + x_p1)
-				+ *(src + x_m1)
-				+ *(src + x_0 + stride_) ) >> 2;
-			*dst++ = val * gNumerat_ / 256UL;
-			/* red: (0,0) */
-			val = *(src + x_0);
-			*dst++ = val * rNumerat_ / 256UL;
-			break;
-		case 1: /* at Gr pixel */
-			/* blue: ((0,-1) + (0,1)) / 2 */
-			val = ( *(src + x_0 - stride_)
-				+ *(src + x_0 + stride_) ) >> 1;
-			*dst++ = val * bNumerat_ / 256UL;
-			/* green: (0,0) */
-			val = *(src + x_0);
-			*dst++ = val * gNumerat_ / 256UL;
-			/* red: ((-1,0) + (1,0)) / 2 */
-			val = ( *(src + x_m1)
-				+ *(src + x_p1) ) >> 1;
-			*dst++ = val * rNumerat_ / 256UL;
-			break;
-		case 2: /* at Gb pixel */
-			/* blue: ((-1,0) + (1,0)) / 2 */
-			val = ( *(src + x_m1)
-				+ *(src + x_p1) ) >> 1;
-			*dst++ = val * bNumerat_ / 256UL;
-			/* green: (0,0) */
-			val = *(src + x_0);
-			*dst++ = val * gNumerat_ / 256UL;
-			/* red: ((0,-1) + (0,1)) / 2 */
-			val = ( *(src + x_0 - stride_)
-				+ *(src + x_0 + stride_) ) >> 1;
-			*dst++ = val * rNumerat_ / 256UL;
-			break;
-		default: /* at B pixel */
-			/* blue: (0,0) */
-			val = *(src + x_0);
-			*dst++ = val * bNumerat_ / 256UL;
-			/* green: ((0,-1)+(-1,0)+(1,0)+(0,1)) / 4 */
-			val = ( *(src + x_0 - stride_)
-				+ *(src + x_p1)
-				+ *(src + x_m1)
-				+ *(src + x_0 + stride_) ) >> 2;
-			*dst++ = val * gNumerat_ / 256UL;
-			/* red: ((-1,-1)+(1,-1)+(-1,1)+(1,1)) / 4 */
-			val = ( *(src + x_m1 - stride_)
-				+ *(src + x_p1 - stride_)
-				+ *(src + x_m1 + stride_)
-				+ *(src + x_p1 + stride_) ) >> 2;
-			*dst++ = val * rNumerat_ / 256UL;
-		}
+		/*
+		 * GBGB line odd pixel: RGR
+		 *                      GBG
+		 *                      RGR
+		 * Write BGR
+		 */
+		*dst++ = curr[x] * bNumerat_ / 256UL;
+		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1]  + next[x + 1]) * rNumerat_ / 1024UL;
+		x++;
+
+		/* Same thing for next 2 pixels */
+		*dst++ = (curr[x - 1] + curr[x + 1]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		x++;
+
+		*dst++ = curr[x] * bNumerat_ / 256UL;
+		*dst++ = (prev[x] + curr[x - 1] + curr[x + 2] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = (prev[x - 1] + prev[x + 2] + next[x - 1]  + next[x + 2]) * rNumerat_ / 1024UL;
 	}
 }
 
-void SwIspLinaro::IspWorker::debayerRaw10PLine0(uint8_t *dst, const uint8_t *src)
+void SwIspLinaro::IspWorker::debayerGBRG10PLine1(uint8_t *dst, const uint8_t *src)
 {
-	debayerRaw10PLine(dst, src, !redShift_.y);
-}
+	const int width_in_bytes = 5 + width_ * 5 / 4;
+	/* Pointers to previous, current and next lines */
+	const uint8_t *prev = src - stride_;
+	const uint8_t *curr = src;
+	const uint8_t *next = src - stride_;
 
-void SwIspLinaro::IspWorker::debayerRaw10PLine1(uint8_t *dst, const uint8_t *src)
-{
-	debayerRaw10PLine(dst, src, redShift_.y);
+	for (int x = 5; x < width_in_bytes; x += 2) {
+		/*
+		 * RGRG line even pixel: BGB
+		 *                       GRG
+		 *                       BGB
+		 * Write BGR
+		 */
+		*dst++ = (prev[x - 2] + prev[x + 1] + next[x - 2] + next[x + 1]) * bNumerat_ / 1024UL;
+		*dst++ = (prev[x] + curr[x - 2] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = curr[x] * rNumerat_ / 256UL;
+		x++;
+
+		/*
+		 * RGRG line odd pixel: GBG
+		 *                      RGR
+		 *                      GBG
+		 * Write BGR
+		 */
+		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (curr[x - 1] + curr[x + 1]) * rNumerat_ / 512UL;
+		x++;
+
+		/* Same thing for next 2 pixels */
+		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1] + next[x + 1]) * bNumerat_ / 1024UL;
+		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = curr[x] * rNumerat_ / 256UL;
+		x++;
+
+		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (curr[x - 1] + curr[x + 2]) * rNumerat_ / 512UL;
+	}
 }
 
 void SwIspLinaro::IspWorker::finishRaw10PStats(void)
@@ -440,8 +439,8 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGBRG10_CSI2P] = { formats::RGB888,
-						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
-						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  &SwIspLinaro::IspWorker::debayerGBRG10PLine0,
+						  &SwIspLinaro::IspWorker::debayerGBRG10PLine1,
 						  &SwIspLinaro::IspWorker::statsGBRG10PLine0,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
@@ -455,8 +454,9 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SRGGB10_CSI2P] = { formats::RGB888,
-						  &SwIspLinaro::IspWorker::debayerRaw10PLine0,
-						  &SwIspLinaro::IspWorker::debayerRaw10PLine1,
+						  /* RGGB is GBRG with the lines swapped */
+						  &SwIspLinaro::IspWorker::debayerGBRG10PLine1,
+						  &SwIspLinaro::IspWorker::debayerGBRG10PLine0,
 						  &SwIspLinaro::IspWorker::statsRGGB10PLine0,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,

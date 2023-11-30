@@ -91,11 +91,10 @@ private:
 		debayerInfo *debayerInfo_;
 
 		/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
-		void debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y);
-		void debayerRaw10PLine0(uint8_t *dst, const uint8_t *src);
-		void debayerRaw10PLine1(uint8_t *dst, const uint8_t *src);
 		void debayerBGGR10PLine0(uint8_t *dst, const uint8_t *src);
 		void debayerBGGR10PLine1(uint8_t *dst, const uint8_t *src);
+		void debayerGBRG10PLine0(uint8_t *dst, const uint8_t *src);
+		void debayerGBRG10PLine1(uint8_t *dst, const uint8_t *src);
 		void statsBGGR10PLine0(const uint8_t *src);
 		void statsGBRG10PLine0(const uint8_t *src);
 		void statsGRBG10PLine0(const uint8_t *src);

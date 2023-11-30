@@ -434,14 +434,20 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 	debayerInfos_[formats::SBGGR10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine0,
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine1,
+						  NULL,
+						  NULL,
 						  &SwIspLinaro::IspWorker::statsBGGR10PLine0,
+						  NULL,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGBRG10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerGBRG10PLine0,
 						  &SwIspLinaro::IspWorker::debayerGBRG10PLine1,
+						  NULL,
+						  NULL,
 						  &SwIspLinaro::IspWorker::statsGBRG10PLine0,
+						  NULL,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
@@ -449,7 +455,10 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  /* GRBG is BGGR with the lines swapped */
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine1,
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine0,
+						  NULL,
+						  NULL,
 						  &SwIspLinaro::IspWorker::statsGRBG10PLine0,
+						  NULL,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
@@ -457,7 +466,10 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  /* RGGB is GBRG with the lines swapped */
 						  &SwIspLinaro::IspWorker::debayerGBRG10PLine1,
 						  &SwIspLinaro::IspWorker::debayerGBRG10PLine0,
+						  NULL,
+						  NULL,
 						  &SwIspLinaro::IspWorker::statsRGGB10PLine0,
+						  NULL,
 						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
@@ -732,18 +744,43 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 	const uint8_t *src = in.planes()[0].data();
 	uint8_t *dst = out.planes()[0].data();
 
-	/* Skip first 4 lines for debayer interpolation purposes */
-	src += stride_ * 4;
-	int lines = outHeight_ / 2;
-	while (lines--) {
-		(this->*debayerInfo_->stats0)(src);
-		(this->*debayerInfo_->debayer0)(dst, src);
-		src += stride_;
-		dst += outStride_;
+	if (debayerInfo_->debayer2) {
+		/* Skip first 4 lines for debayer interpolation purposes */
+		src += stride_ * 4;
+		int lines = outHeight_ / 4;
+		while (lines--) {
+			(this->*debayerInfo_->stats0)(src);
+			(this->*debayerInfo_->debayer0)(dst, src);
+			src += stride_;
+			dst += outStride_;
 
-		(this->*debayerInfo_->debayer1)(dst, src);
-		src += stride_;
-		dst += outStride_;
+			(this->*debayerInfo_->debayer1)(dst, src);
+			src += stride_;
+			dst += outStride_;
+
+			(this->*debayerInfo_->stats2)(src);
+			(this->*debayerInfo_->debayer2)(dst, src);
+			src += stride_;
+			dst += outStride_;
+
+			(this->*debayerInfo_->debayer3)(dst, src);
+			src += stride_;
+			dst += outStride_;
+		}
+	} else {
+		/* Skip first 2 lines for debayer interpolation purposes */
+		src += stride_ * 2;
+		int lines = outHeight_ / 2;
+		while (lines--) {
+			(this->*debayerInfo_->stats0)(src);
+			(this->*debayerInfo_->debayer0)(dst, src);
+			src += stride_;
+			dst += outStride_;
+
+			(this->*debayerInfo_->debayer1)(dst, src);
+			src += stride_;
+			dst += outStride_;
+		}
 	}
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();

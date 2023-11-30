@@ -78,7 +78,10 @@ private:
 			PixelFormat outPixelFmt;
 			debayerFn debayer0;
 			debayerFn debayer1;
+			debayerFn debayer2;
+			debayerFn debayer3;
 			statsFn stats0;
+			statsFn stats2;
 			finishStatsFn finishStats;
 			outSizesFn getOutSizes;
 			outStrideFn getOutStride;

@@ -205,6 +205,98 @@ void SwIspLinaro::IspWorker::statsRGGB10PLine0(const uint8_t *src0)
 	SWISP_LINARO_FINISH_LINE_STATS()
 }
 
+void SwIspLinaro::IspWorker::debayerBGGR10PLine0(uint8_t *dst, const uint8_t *src)
+{
+	const int width_in_bytes = 5 + width_ * 5 / 4;
+	/* Pointers to previous, current and next lines */
+	const uint8_t *prev = src - stride_;
+	const uint8_t *curr = src;
+	const uint8_t *next = src - stride_;
+
+	for (int x = 5; x < width_in_bytes; x += 2) {
+		/*
+		 * BGBG line even pixel: RGR
+		 *                       GBG
+		 *                       RGR
+		 * Write BGR
+		 */
+		*dst++ = curr[x] * bNumerat_ / 256UL;
+		*dst++ = (prev[x] + curr[x - 2] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = (prev[x - 2] + prev[x + 1] + next[x - 2]  + next[x + 1]) * rNumerat_ / 1024UL;
+		x++;
+
+		/*
+		 * BGBG line odd pixel: GRG
+		 *                      BGB
+		 *                      GRG
+		 * Write BGR
+		 */
+		*dst++ = (curr[x - 1] + curr[x + 1]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		x++;
+
+		/* Same thing for next 2 pixels */
+		*dst++ = curr[x] * bNumerat_ / 256UL;
+		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1]  + next[x + 1]) * rNumerat_ / 1024UL;
+		x++;
+
+		*dst++ = (curr[x - 1] + curr[x + 2]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+	}
+}
+
+void SwIspLinaro::IspWorker::debayerBGGR10PLine1(uint8_t *dst, const uint8_t *src)
+{
+	const int width_in_bytes = 5 + width_ * 5 / 4;
+	/* Pointers to previous, current and next lines */
+	const uint8_t *prev = src - stride_;
+	const uint8_t *curr = src;
+	const uint8_t *next = src - stride_;
+
+	/*
+	 * For the first pixel getting a pixel from the previous column uses
+	 * x - 2 to skip the 5th byte with least-significant bits for 4 pixels.
+	 * Same for last pixel and looking at the nexy column.
+	 */
+
+	for (int x = 5; x < width_in_bytes; x += 2) {
+		/*
+		 * GRGR line even pixel: GBG
+		 *                       RGR
+		 *                       GBG
+		 * Write BGR
+		 */
+		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (curr[x - 2] + curr[x + 1]) * rNumerat_ / 512UL;
+		x++;
+
+		/*
+		 * GRGR line odd pixel: BGB
+		 *                      GRG
+		 *                      BGB
+		 * Write BGR
+		 */
+		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1] + next[x + 1]) * bNumerat_ / 1024UL;
+		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = curr[x] * rNumerat_ / 256UL;
+		x++;
+
+		/* Same thing for next 2 pixels */
+		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
+		*dst++ = curr[x] * gNumerat_ / 256UL;
+		*dst++ = (curr[x - 1] + curr[x + 1]) * rNumerat_ / 512UL;
+		x++;
+
+		*dst++ = (prev[x - 1] + prev[x + 2] + next[x - 1] + next[x + 2]) * bNumerat_ / 1024UL;
+		*dst++ = (prev[x] + curr[x - 1] + curr[x + 2] + next[x]) * gNumerat_ / 1024UL;
+		*dst++ = curr[x] * rNumerat_ / 256UL;
+	}
+}
+
 void SwIspLinaro::IspWorker::debayerRaw10PLine(uint8_t *dst, const uint8_t *src, int phase_y)
 {
 	for (unsigned int x = 0; x < outWidth_; x++) {
@@ -359,8 +451,8 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 	: swIsp_(swIsp)
 {
 	debayerInfos_[formats::SBGGR10_CSI2P] = { formats::RGB888,
-		&SwIspLinaro::IspWorker::debayerRaw10PLine0,
-		&SwIspLinaro::IspWorker::debayerRaw10PLine1,
+		&SwIspLinaro::IspWorker::debayerBGGR10PLine0,
+		&SwIspLinaro::IspWorker::debayerBGGR10PLine1,
 		&SwIspLinaro::IspWorker::statsBGGR10PLine0,
 		&SwIspLinaro::IspWorker::finishRaw10PStats,
 		&SwIspLinaro::IspWorker::outSizesRaw10P,
@@ -373,8 +465,9 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 		&SwIspLinaro::IspWorker::outSizesRaw10P,
 		&SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGRBG10_CSI2P] = { formats::RGB888,
-		&SwIspLinaro::IspWorker::debayerRaw10PLine0,
-		&SwIspLinaro::IspWorker::debayerRaw10PLine1,
+		/* GRBG is BGGR with the lines swapped */
+		&SwIspLinaro::IspWorker::debayerBGGR10PLine1,
+		&SwIspLinaro::IspWorker::debayerBGGR10PLine0,
 		&SwIspLinaro::IspWorker::statsGRBG10PLine0,
 		&SwIspLinaro::IspWorker::finishRaw10PStats,
 		&SwIspLinaro::IspWorker::outSizesRaw10P,

@@ -44,6 +44,8 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<unsigned int, FrameBuffer *> &outputs);
 
+	const SharedFD &getStatsFD() { return sharedStats_.fd(); }
+
 	void process(FrameBuffer *input, FrameBuffer *output);
 
 private:

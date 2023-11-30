@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/shared_fd.h>
 #include <libcamera/base/signal.h>
 
 #include <libcamera/geometry.h>
@@ -52,6 +53,9 @@ public:
 
 	virtual int queueBuffers(FrameBuffer *input,
 				 const std::map<unsigned int, FrameBuffer *> &outputs) = 0;
+
+	/* A hack to pass the FD from Soft ISP to Soft IPA */
+	virtual const SharedFD &getStatsFD() = 0;
 
 	Signal<FrameBuffer *> inputBufferReady;
 	Signal<FrameBuffer *> outputBufferReady;

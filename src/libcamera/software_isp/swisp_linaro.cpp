@@ -240,7 +240,22 @@ SizeRange SwIspLinaro::IspWorker::outSizesRaw10P(const Size &inSize)
 		return {};
 	}
 
-	return SizeRange(Size(inSize.width - 2, inSize.height - 2));
+	/*
+	 * Debayering is done on 4x4 blocks because:
+	 * 1. Some RGBI patterns repeat on a 4x4 basis
+	 * 2. 10 bit packed bayer data packs 4 pixels in every 5 bytes
+	 *
+	 * For the width 1 extra column is needed for interpolation on each side
+	 * and to keep the debayer code simple on the left side an entire block
+	 * is skipped reducing the available width by 5 pixels.
+	 *
+	 * For the height 2 extra rows are needed for RGBI interpolation
+	 * and to keep the debayer code simple on the top an entire block is
+         * skipped reducing the available height by 6 pixels.
+         *
+         * As debayering is done in 4x4 blocks both must be a multiple of 4.
+         */
+	return SizeRange(Size((inSize.width - 5) & ~3, (inSize.height - 6) & ~3));
 }
 
 unsigned int SwIspLinaro::IspWorker::outStrideRaw10P(const Size &outSize)

@@ -7,6 +7,7 @@
 
 #include "libcamera/internal/software_isp/swisp_linaro.h"
 
+#include <math.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -403,9 +404,14 @@ void SwIspLinaro::IspWorker::finishRaw10PStats(void)
 		bNumerat = 256 * sumG_ / sumB_;
 
 	for (int i = 0; i < 256; i++) {
-		/* Use gamma curve stored in green lookup */
-		red_[i] = std::min({ green_[i] * rNumerat / 256U, 255U });
-		blue_[i] = std::min({ green_[i] * bNumerat / 256U, 255U });
+		int idx;
+
+		/* Use gamma curve stored in green lookup, apply gamma after gain! */
+		idx = std::min({ i * rNumerat / 256U, 255U });
+		red_[i] = green_[idx];
+
+		idx = std::min({ i * bNumerat / 256U, 255U });
+		blue_[i] = green_[idx];
 	}
 }
 
@@ -598,11 +604,16 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 		<< inputCfg.size << "-" << inputCfg.pixelFormat << " -> "
 		<< outputCfg.size << "-" << outputCfg.pixelFormat;
 
-	/* set r/g/b lookups to 1:1 map until frame data collected */
+	const float gamma_correction = 0.5;
+
+	/*
+	 * Store gamma curve in green lookup and copy to red + blue
+	 * until frame data collected
+	 */
 	for (int i = 0; i < 256; i++) {
-		red_[i] = i;
-		green_[i] = i;
-		blue_[i] = i;
+		green_[i] = 255 * powf(i / 255.0, gamma_correction);
+		red_[i] = green_[i];
+		blue_[i] = green_[i];
 	}
 
 	return 0;

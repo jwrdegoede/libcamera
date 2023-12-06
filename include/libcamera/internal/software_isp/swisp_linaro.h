@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include <libcamera/base/log.h>
 #include <libcamera/base/thread.h>
 
@@ -114,9 +116,9 @@ private:
 		unsigned int outHeight_;
 		unsigned int outStride_;
 
-		unsigned long rNumerat_; /* red gain for AWB */
-		unsigned long bNumerat_; /* blue gain for AWB */
-		unsigned long gNumerat_; /* green gain for AWB */
+		uint8_t red_[256];
+		uint8_t green_[256];
+		uint8_t blue_[256];
 
 		unsigned long sumR_;
 		unsigned long sumB_;

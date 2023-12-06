@@ -224,9 +224,9 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine0(uint8_t *dst, const uint8_t *sr
 		 *                       RGR
 		 * Write BGR
 		 */
-		*dst++ = curr[x] * bNumerat_ / 256UL;
-		*dst++ = (prev[x] + curr[x - 2] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = (prev[x - 2] + prev[x + 1] + next[x - 2]  + next[x + 1]) * rNumerat_ / 1024UL;
+		*dst++ = blue_[curr[x]];
+		*dst++ = green_[(prev[x] + curr[x - 2] + curr[x + 1] + next[x]) / 4];
+		*dst++ = red_[(prev[x - 2] + prev[x + 1] + next[x - 2]  + next[x + 1]) / 4];
 		x++;
 
 		/*
@@ -235,20 +235,20 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine0(uint8_t *dst, const uint8_t *sr
 		 *                      GRG
 		 * Write BGR
 		 */
-		*dst++ = (curr[x - 1] + curr[x + 1]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(curr[x - 1] + curr[x + 1]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(prev[x] + next[x]) / 2];
 		x++;
 
 		/* Same thing for next 2 pixels */
-		*dst++ = curr[x] * bNumerat_ / 256UL;
-		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1]  + next[x + 1]) * rNumerat_ / 1024UL;
+		*dst++ = blue_[curr[x]];
+		*dst++ = green_[(prev[x] + curr[x - 1] + curr[x + 1] + next[x]) / 4];
+		*dst++ = red_[(prev[x - 1] + prev[x + 1] + next[x - 1]  + next[x + 1]) / 4];
 		x++;
 
-		*dst++ = (curr[x - 1] + curr[x + 2]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(curr[x - 1] + curr[x + 2]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(prev[x] + next[x]) / 2];
 	}
 }
 
@@ -267,9 +267,9 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine1(uint8_t *dst, const uint8_t *sr
 		 *                       GBG
 		 * Write BGR
 		 */
-		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (curr[x - 2] + curr[x + 1]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(prev[x] + next[x]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(curr[x - 2] + curr[x + 1]) / 2];
 		x++;
 
 		/*
@@ -278,20 +278,20 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine1(uint8_t *dst, const uint8_t *sr
 		 *                      BGB
 		 * Write BGR
 		 */
-		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1] + next[x + 1]) * bNumerat_ / 1024UL;
-		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = curr[x] * rNumerat_ / 256UL;
+		*dst++ = blue_[(prev[x - 1] + prev[x + 1] + next[x - 1] + next[x + 1]) / 4];
+		*dst++ = green_[(prev[x] + curr[x - 1] + curr[x + 1] + next[x]) / 4];
+		*dst++ = red_[curr[x]];
 		x++;
 
 		/* Same thing for next 2 pixels */
-		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (curr[x - 1] + curr[x + 1]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(prev[x] + next[x]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(curr[x - 1] + curr[x + 1]) / 2];
 		x++;
 
-		*dst++ = (prev[x - 1] + prev[x + 2] + next[x - 1] + next[x + 2]) * bNumerat_ / 1024UL;
-		*dst++ = (prev[x] + curr[x - 1] + curr[x + 2] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = curr[x] * rNumerat_ / 256UL;
+		*dst++ = blue_[(prev[x - 1] + prev[x + 2] + next[x - 1] + next[x + 2]) / 4];
+		*dst++ = green_[(prev[x] + curr[x - 1] + curr[x + 2] + next[x]) / 4];
+		*dst++ = red_[curr[x]];
 	}
 }
 
@@ -310,9 +310,9 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine0(uint8_t *dst, const uint8_t *sr
 		 *                       GRG
 		 * Write BGR
 		 */
-		*dst++ = (curr[x - 2] + curr[x + 1]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(curr[x - 2] + curr[x + 1]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(prev[x] + next[x]) / 2];
 		x++;
 
 		/*
@@ -321,20 +321,20 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine0(uint8_t *dst, const uint8_t *sr
 		 *                      RGR
 		 * Write BGR
 		 */
-		*dst++ = curr[x] * bNumerat_ / 256UL;
-		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1]  + next[x + 1]) * rNumerat_ / 1024UL;
+		*dst++ = blue_[curr[x]];
+		*dst++ = green_[(prev[x] + curr[x - 1] + curr[x + 1] + next[x]) / 4];
+		*dst++ = red_[(prev[x - 1] + prev[x + 1] + next[x - 1]  + next[x + 1]) / 4];
 		x++;
 
 		/* Same thing for next 2 pixels */
-		*dst++ = (curr[x - 1] + curr[x + 1]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (prev[x] + next[x]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(curr[x - 1] + curr[x + 1]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(prev[x] + next[x]) / 2];
 		x++;
 
-		*dst++ = curr[x] * bNumerat_ / 256UL;
-		*dst++ = (prev[x] + curr[x - 1] + curr[x + 2] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = (prev[x - 1] + prev[x + 2] + next[x - 1]  + next[x + 2]) * rNumerat_ / 1024UL;
+		*dst++ = blue_[curr[x]];
+		*dst++ = green_[(prev[x] + curr[x - 1] + curr[x + 2] + next[x]) / 4];
+		*dst++ = red_[(prev[x - 1] + prev[x + 2] + next[x - 1]  + next[x + 2]) / 4];
 	}
 }
 
@@ -353,9 +353,9 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine1(uint8_t *dst, const uint8_t *sr
 		 *                       BGB
 		 * Write BGR
 		 */
-		*dst++ = (prev[x - 2] + prev[x + 1] + next[x - 2] + next[x + 1]) * bNumerat_ / 1024UL;
-		*dst++ = (prev[x] + curr[x - 2] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = curr[x] * rNumerat_ / 256UL;
+		*dst++ = blue_[(prev[x - 2] + prev[x + 1] + next[x - 2] + next[x + 1]) / 4];
+		*dst++ = green_[(prev[x] + curr[x - 2] + curr[x + 1] + next[x]) / 4];
+		*dst++ = red_[curr[x]];
 		x++;
 
 		/*
@@ -364,20 +364,20 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine1(uint8_t *dst, const uint8_t *sr
 		 *                      GBG
 		 * Write BGR
 		 */
-		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (curr[x - 1] + curr[x + 1]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(prev[x] + next[x]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(curr[x - 1] + curr[x + 1]) / 2];
 		x++;
 
 		/* Same thing for next 2 pixels */
-		*dst++ = (prev[x - 1] + prev[x + 1] + next[x - 1] + next[x + 1]) * bNumerat_ / 1024UL;
-		*dst++ = (prev[x] + curr[x - 1] + curr[x + 1] + next[x]) * gNumerat_ / 1024UL;
-		*dst++ = curr[x] * rNumerat_ / 256UL;
+		*dst++ = blue_[(prev[x - 1] + prev[x + 1] + next[x - 1] + next[x + 1]) / 4];
+		*dst++ = green_[(prev[x] + curr[x - 1] + curr[x + 1] + next[x]) / 4];
+		*dst++ = red_[curr[x]];
 		x++;
 
-		*dst++ = (prev[x] + next[x]) * bNumerat_ / 512UL;
-		*dst++ = curr[x] * gNumerat_ / 256UL;
-		*dst++ = (curr[x - 1] + curr[x + 2]) * rNumerat_ / 512UL;
+		*dst++ = blue_[(prev[x] + next[x]) / 2];
+		*dst++ = green_[curr[x]];
+		*dst++ = red_[(curr[x - 1] + curr[x + 2]) / 2];
 	}
 }
 
@@ -388,13 +388,25 @@ void SwIspLinaro::IspWorker::finishRaw10PStats(void)
 	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_ / 4);
 
 	/* calculate red and blue gains for simple AWB */
-	sumG_ /= 2; /* the number of G pixels is twice as big vs R and B ones */
+	unsigned int rNumerat;
+	unsigned int bNumerat;
 
-	unsigned long sumMin = std::min({ sumR_, sumG_, sumB_ });
+	/* Clamp max gain at 4.0, this also avoids 0 division */
+	if (sumR_ <= sumG_ / 4)
+		rNumerat = 1024;
+	else
+		rNumerat = 256 * sumG_ / sumR_;
 
-	rNumerat_ = 256UL * sumMin / sumR_;
-	gNumerat_ = 256UL * sumMin / sumG_;
-	bNumerat_ = 256UL * sumMin / sumB_;
+	if (sumB_ <= sumG_ / 4)
+		bNumerat = 1024;
+	else
+		bNumerat = 256 * sumG_ / sumB_;
+
+	for (int i = 0; i < 256; i++) {
+		/* Use gamma curve stored in green lookup */
+		red_[i] = std::min({ green_[i] * rNumerat / 256U, 255U });
+		blue_[i] = std::min({ green_[i] * bNumerat / 256U, 255U });
+	}
 }
 
 SizeRange SwIspLinaro::IspWorker::outSizesRaw10P(const Size &inSize)
@@ -586,10 +598,12 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 		<< inputCfg.size << "-" << inputCfg.pixelFormat << " -> "
 		<< outputCfg.size << "-" << outputCfg.pixelFormat;
 
-	/* set r/g/b gains to 1.0 until frame data collected */
-	rNumerat_ = 256;
-	bNumerat_ = 256;
-	gNumerat_ = 256;
+	/* set r/g/b lookups to 1:1 map until frame data collected */
+	for (int i = 0; i < 256; i++) {
+		red_[i] = i;
+		green_[i] = i;
+		blue_[i] = i;
+	}
 
 	return 0;
 }

@@ -3,4 +3,6 @@
 libcamera_internal_headers += files([
     'statistics-linaro.h',
     'swisp_linaro.h',
+    'swisp_stats.h',
+    'swstats.h',
 ])

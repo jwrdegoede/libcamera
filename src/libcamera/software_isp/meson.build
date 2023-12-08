@@ -2,4 +2,5 @@
 
 libcamera_sources += files([
 	'swstats.cpp',
+	'swstats_cpu.cpp',
 ])

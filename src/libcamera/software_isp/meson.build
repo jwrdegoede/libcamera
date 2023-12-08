@@ -3,4 +3,5 @@
 libcamera_sources += files([
         'swisp_linaro.cpp',
 	'swstats.cpp',
+	'swstats_cpu.cpp',
 ])

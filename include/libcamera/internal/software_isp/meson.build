@@ -3,4 +3,5 @@
 libcamera_internal_headers += files([
     'swisp_stats.h',
     'swstats.h',
+    'swstats_cpu.h',
 ])

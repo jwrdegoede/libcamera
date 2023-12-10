@@ -211,7 +211,7 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine0(uint8_t *dst, const uint8_t *sr
 	/* Pointers to previous, current and next lines */
 	const uint8_t *prev = src - stride_;
 	const uint8_t *curr = src;
-	const uint8_t *next = src - stride_;
+	const uint8_t *next = src + stride_;
 
 	/*
 	 * For the first pixel getting a pixel from the previous column uses
@@ -259,7 +259,7 @@ void SwIspLinaro::IspWorker::debayerBGGR10PLine1(uint8_t *dst, const uint8_t *sr
 	/* Pointers to previous, current and next lines */
 	const uint8_t *prev = src - stride_;
 	const uint8_t *curr = src;
-	const uint8_t *next = src - stride_;
+	const uint8_t *next = src + stride_;
 
 	for (int x = 5; x < width_in_bytes; x += 2) {
 		/*
@@ -302,7 +302,7 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine0(uint8_t *dst, const uint8_t *sr
 	/* Pointers to previous, current and next lines */
 	const uint8_t *prev = src - stride_;
 	const uint8_t *curr = src;
-	const uint8_t *next = src - stride_;
+	const uint8_t *next = src + stride_;
 
 	for (int x = 5; x < width_in_bytes; x += 2) {
 		/*
@@ -345,7 +345,7 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine1(uint8_t *dst, const uint8_t *sr
 	/* Pointers to previous, current and next lines */
 	const uint8_t *prev = src - stride_;
 	const uint8_t *curr = src;
-	const uint8_t *next = src - stride_;
+	const uint8_t *next = src + stride_;
 
 	for (int x = 5; x < width_in_bytes; x += 2) {
 		/*

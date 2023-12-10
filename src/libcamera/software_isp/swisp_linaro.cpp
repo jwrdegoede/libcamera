@@ -438,7 +438,10 @@ SizeRange SwIspLinaro::IspWorker::outSizesRaw10P(const Size &inSize)
          *
          * As debayering is done in 4x4 blocks both must be a multiple of 4.
          */
-	return SizeRange(Size((inSize.width - 5) & ~3, (inSize.height - 6) & ~3));
+	return SizeRange(Size(4, 4),
+			 Size((inSize.width - 2 * 4) & ~(4 - 1),
+			      (inSize.height - 2 * 4) & ~(4 - 1)),
+			 4, 4);
 }
 
 unsigned int SwIspLinaro::IspWorker::outStrideRaw10P(const Size &outSize)

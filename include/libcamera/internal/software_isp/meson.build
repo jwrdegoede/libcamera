@@ -2,6 +2,7 @@
 
 libcamera_internal_headers += files([
     'debayer.h',
+    'debayer_cpu.h',
     'debayer_params.h',
     'swisp_stats.h',
     'swstats.h',

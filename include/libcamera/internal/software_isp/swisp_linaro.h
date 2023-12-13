@@ -14,7 +14,7 @@
 
 #include <libcamera/pixel_format.h>
 
-#include "libcamera/internal/software_isp/swstats_cpu.h"
+#include "libcamera/internal/software_isp/debayer_cpu.h"
 #include "libcamera/internal/software_isp.h"
 
 namespace libcamera {
@@ -35,7 +35,11 @@ public:
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 
 	int configure(const StreamConfiguration &inputCfg,
-		      const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs);
+		      const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs)
+	{
+		return debayer_->configure(inputCfg, outputCfgs);
+	}
+
 	int exportBuffers(unsigned int output, unsigned int count,
 			  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
 
@@ -45,76 +49,19 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<unsigned int, FrameBuffer *> &outputs);
 
-	const SharedFD &getStatsFD() { return ispWorker_->getStatsFD(); }
+	const SharedFD &getStatsFD() { return debayer_->getStatsFD(); }
 
 	void process(FrameBuffer *input, FrameBuffer *output);
 
 private:
 	void statsReady(int dummy);
+	void inputReady(FrameBuffer *input);
+	void outputReady(FrameBuffer *output);
 
-	class IspWorker : public Object
-	{
-	public:
-		IspWorker(SwIspLinaro *swIsp, std::unique_ptr<SwStatsCpu> stats);
-
-		const SharedFD &getStatsFD() { return stats_->getStatsFD(); }
-
-		std::vector<PixelFormat> formats(PixelFormat input);
-		SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
-		unsigned int outStride(const PixelFormat &outputFormat,
-				       const Size &outSize);
-
-		int configure(const StreamConfiguration &inputCfg,
-			      const StreamConfiguration &outputCfg);
-		unsigned int outBufferSize();
-		void process(FrameBuffer *input, FrameBuffer *output);
-
-	private:
-		SwIspLinaro *swIsp_;
-		std::unique_ptr<SwStatsCpu> stats_;
-
-		typedef void (SwIspLinaro::IspWorker::*debayerFn)(uint8_t *dst, const uint8_t *src);
-		typedef SizeRange (*outSizesFn)(const Size &inSize);
-		typedef unsigned int (*outStrideFn)(const Size &outSize);
-		struct debayerInfo {
-			PixelFormat outPixelFmt;
-			debayerFn debayer0;
-			debayerFn debayer1;
-			debayerFn debayer2;
-			debayerFn debayer3;
-			outSizesFn getOutSizes;
-			outStrideFn getOutStride;
-		};
-		// TODO: use inputFormat+outputFormat as the map key
-		// to enable multiple output formats
-		// TODO: use BayerFormat instead of PixelFormat as inputFormat
-		std::map<PixelFormat, IspWorker::debayerInfo> debayerInfos_;
-		int setDebayerInfo(PixelFormat format);
-		debayerInfo *debayerInfo_;
-
-		/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
-		void debayerBGGR10PLine0(uint8_t *dst, const uint8_t *src);
-		void debayerBGGR10PLine1(uint8_t *dst, const uint8_t *src);
-		void debayerGBRG10PLine0(uint8_t *dst, const uint8_t *src);
-		void debayerGBRG10PLine1(uint8_t *dst, const uint8_t *src);
-		static SizeRange outSizesRaw10P(const Size &inSize);
-		static unsigned int outStrideRaw10P(const Size &outSize);
-
-		unsigned int width_;
-		unsigned int height_;
-		unsigned int stride_;
-		Point redShift_;
-		unsigned int outWidth_;
-		unsigned int outHeight_;
-		unsigned int outStride_;
-
-		uint8_t red_[256];
-		uint8_t green_[256];
-		uint8_t blue_[256];
-	};
-
-	std::unique_ptr<IspWorker> ispWorker_;
+	std::unique_ptr<DebayerCpu> debayer_;
 	Thread ispWorkerThread_;
+	/* FIXME debayerParams should come from the IPA */
+	DebayerParams debayerParams_;
 };
 
 } /* namespace libcamera */

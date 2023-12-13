@@ -14,8 +14,7 @@
 
 #include <libcamera/pixel_format.h>
 
-#include "libcamera/internal/shared_mem_object.h"
-#include "libcamera/internal/software_isp/statistics-linaro.h"
+#include "libcamera/internal/software_isp/swstats_cpu.h"
 #include "libcamera/internal/software_isp.h"
 
 namespace libcamera {
@@ -46,17 +45,19 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<unsigned int, FrameBuffer *> &outputs);
 
-	const SharedFD &getStatsFD() { return sharedStats_.fd(); }
+	const SharedFD &getStatsFD() { return ispWorker_->getStatsFD(); }
 
 	void process(FrameBuffer *input, FrameBuffer *output);
 
 private:
-	SharedMemObject<SwIspStats> sharedStats_;
+	void statsReady(int dummy);
 
 	class IspWorker : public Object
 	{
 	public:
-		IspWorker(SwIspLinaro *swIsp);
+		IspWorker(SwIspLinaro *swIsp, std::unique_ptr<SwStatsCpu> stats);
+
+		const SharedFD &getStatsFD() { return stats_->getStatsFD(); }
 
 		std::vector<PixelFormat> formats(PixelFormat input);
 		SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
@@ -70,10 +71,9 @@ private:
 
 	private:
 		SwIspLinaro *swIsp_;
+		std::unique_ptr<SwStatsCpu> stats_;
 
 		typedef void (SwIspLinaro::IspWorker::*debayerFn)(uint8_t *dst, const uint8_t *src);
-		typedef void (SwIspLinaro::IspWorker::*statsFn)(const uint8_t *src);
-		typedef void (SwIspLinaro::IspWorker::*finishStatsFn)(void);
 		typedef SizeRange (*outSizesFn)(const Size &inSize);
 		typedef unsigned int (*outStrideFn)(const Size &outSize);
 		struct debayerInfo {
@@ -82,9 +82,6 @@ private:
 			debayerFn debayer1;
 			debayerFn debayer2;
 			debayerFn debayer3;
-			statsFn stats0;
-			statsFn stats2;
-			finishStatsFn finishStats;
 			outSizesFn getOutSizes;
 			outStrideFn getOutStride;
 		};
@@ -100,11 +97,6 @@ private:
 		void debayerBGGR10PLine1(uint8_t *dst, const uint8_t *src);
 		void debayerGBRG10PLine0(uint8_t *dst, const uint8_t *src);
 		void debayerGBRG10PLine1(uint8_t *dst, const uint8_t *src);
-		void statsBGGR10PLine0(const uint8_t *src);
-		void statsGBRG10PLine0(const uint8_t *src);
-		void statsGRBG10PLine0(const uint8_t *src);
-		void statsRGGB10PLine0(const uint8_t *src);
-		void finishRaw10PStats(void);
 		static SizeRange outSizesRaw10P(const Size &inSize);
 		static unsigned int outStrideRaw10P(const Size &outSize);
 
@@ -119,15 +111,6 @@ private:
 		uint8_t red_[256];
 		uint8_t green_[256];
 		uint8_t blue_[256];
-
-		unsigned long sumR_;
-		unsigned long sumB_;
-		unsigned long sumG_;
-
-		unsigned long bright_sum_;
-		unsigned long too_bright_sum_;
-
-		SwIspStats stats_;
 	};
 
 	std::unique_ptr<IspWorker> ispWorker_;

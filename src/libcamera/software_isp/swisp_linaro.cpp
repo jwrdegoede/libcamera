@@ -24,185 +24,30 @@ namespace libcamera {
 LOG_DECLARE_CATEGORY(SoftwareIsp)
 
 SwIspLinaro::SwIspLinaro(const std::string &name)
-	: SoftwareIsp(name)
+	: SoftwareIsp(name), ispWorker_(nullptr)
 {
-	ispWorker_ = std::make_unique<SwIspLinaro::IspWorker>(this);
-	if (!ispWorker_) {
-		LOG(SoftwareIsp, Error)
-			<< "Failed to create ISP worker";
-	} else {
-		sharedStats_ = SharedMemObject<SwIspStats>("softIsp_stats");
-		if (!sharedStats_.fd().isValid()) {
-			LOG(SoftwareIsp, Error)
-				<< "Failed to create shared memory for statistics";
-			ispWorker_.reset();
-		} else {
-			ispWorker_->moveToThread(&ispWorkerThread_);
-		}
+	std::unique_ptr<SwStatsCpu> stats;
+
+	stats = std::make_unique<SwStatsCpu>();
+	if (!stats || !stats->isValid()) {
+		LOG(SoftwareIsp, Error) << "Failed to create SwStatsCPU object";
+		return;
 	}
+
+	stats->statsReady.connect(this, &SwIspLinaro::statsReady);
+
+	ispWorker_ = std::make_unique<SwIspLinaro::IspWorker>(this, std::move(stats));
+	if (!ispWorker_) {
+		LOG(SoftwareIsp, Error) << "Failed to create ISP worker";
+		return;
+	}
+
+	ispWorker_->moveToThread(&ispWorkerThread_);
 }
 
 bool SwIspLinaro::isValid() const
 {
 	return !!ispWorker_;
-}
-
-/* for brightness values in the 0 to 255 range: */
-static const unsigned int BRIGHT_LVL = 200U << 8;
-static const unsigned int TOO_BRIGHT_LVL = 240U << 8;
-
-static const unsigned int RED_Y_MUL = 77;		/* 0.30 * 256 */
-static const unsigned int GREEN_Y_MUL = 150 / 2;	/* 0.59 * 256 */
-static const unsigned int BLUE_Y_MUL = 29;		/* 0.11 * 256 */
-
-/*
- * These need to be macros because it accesses a whole bunch of local
- * variables (and copy and pasting this x times is undesirable)
- */
-#define SWISP_LINARO_START_LINE_STATS()			\
-	uint8_t r, g1, g2, b;				\
-	unsigned int y_val;				\
-							\
-	unsigned long sumR = 0;				\
-	unsigned long sumG = 0;				\
-	unsigned long sumB = 0;				\
-							\
-	unsigned long bright_sum = 0;			\
-	unsigned long too_bright_sum = 0;
-
-#define SWISP_LINARO_ACCUMULATE_LINE_STATS()		\
-	sumR += r;					\
-	sumG += g1 + g2;				\
-	sumB += b;					\
-							\
-	y_val = r * RED_Y_MUL;				\
-	y_val += (g1 + g2) * GREEN_Y_MUL;		\
-	y_val += b * BLUE_Y_MUL;			\
-	if (y_val > BRIGHT_LVL) ++bright_sum;		\
-	if (y_val > TOO_BRIGHT_LVL) ++too_bright_sum;
-
-#define SWISP_LINARO_FINISH_LINE_STATS()		\
-	sumR_ += sumR;					\
-	sumG_ += sumG;					\
-	sumB_ += sumB;					\
-							\
-	bright_sum_ += bright_sum;			\
-	too_bright_sum_ += too_bright_sum;
-
-void SwIspLinaro::IspWorker::statsBGGR10PLine0(const uint8_t *src0)
-{
-	const int width_in_bytes = width_ * 5 / 4;
-	const uint8_t *src1 = src0 + stride_;
-
-	SWISP_LINARO_START_LINE_STATS()
-
-	for (int x = 0; x < width_in_bytes; x += 3) {
-		/* BGGR */
-		b  = src0[x];
-		g1 = src0[x + 1];
-		g2 = src1[x];
-		r  = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-
-		x += 2;
-
-		/* BGGR */
-		b  = src0[x];
-		g1 = src0[x + 1];
-		g2 = src1[x];
-		r  = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-	}
-	SWISP_LINARO_FINISH_LINE_STATS()
-}
-
-void SwIspLinaro::IspWorker::statsGBRG10PLine0(const uint8_t *src0)
-{
-	const int width_in_bytes = width_ * 5 / 4;
-	const uint8_t *src1 = src0 + stride_;
-
-	SWISP_LINARO_START_LINE_STATS()
-
-	for (int x = 0; x < width_in_bytes; x += 3) {
-		/* GBRG */
-		g1 = src0[x];
-		b  = src0[x + 1];
-		r  = src1[x];
-		g2 = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-
-		x += 2;
-
-		/* GBRG */
-		g1 = src0[x];
-		b  = src0[x + 1];
-		r  = src1[x];
-		g2 = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-	}
-	SWISP_LINARO_FINISH_LINE_STATS()
-}
-
-void SwIspLinaro::IspWorker::statsGRBG10PLine0(const uint8_t *src0)
-{
-	const int width_in_bytes = width_ * 5 / 4;
-	const uint8_t *src1 = src0 + stride_;
-
-	SWISP_LINARO_START_LINE_STATS()
-
-	for (int x = 0; x < width_in_bytes; x += 3) {
-		/* GRBG */
-		g1 = src0[x];
-		r  = src0[x + 1];
-		b  = src1[x];
-		g2 = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-
-		x += 2;
-
-		/* GRBG */
-		g1 = src0[x];
-		r  = src0[x + 1];
-		b  = src1[x];
-		g2 = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-	}
-	SWISP_LINARO_FINISH_LINE_STATS()
-}
-
-void SwIspLinaro::IspWorker::statsRGGB10PLine0(const uint8_t *src0)
-{
-	const int width_in_bytes = width_ * 5 / 4;
-	const uint8_t *src1 = src0 + stride_;
-
-	SWISP_LINARO_START_LINE_STATS()
-
-	for (int x = 0; x < width_in_bytes; x += 3) {
-		/* RGGB */
-		r  = src0[x];
-		g1 = src0[x + 1];
-		g2 = src1[x];
-		b  = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-
-		x += 2;
-
-		/* RGGB */
-		r  = src0[x];
-		g1 = src0[x + 1];
-		g2 = src1[x];
-		b  = src1[x + 1];
-
-		SWISP_LINARO_ACCUMULATE_LINE_STATS()
-	}
-	SWISP_LINARO_FINISH_LINE_STATS()
 }
 
 void SwIspLinaro::IspWorker::debayerBGGR10PLine0(uint8_t *dst, const uint8_t *src)
@@ -382,39 +227,6 @@ void SwIspLinaro::IspWorker::debayerGBRG10PLine1(uint8_t *dst, const uint8_t *sr
 	}
 }
 
-void SwIspLinaro::IspWorker::finishRaw10PStats(void)
-{
-	/* calculate the fractions of "bright" and "too bright" pixels */
-	stats_.bright_ratio = (float)bright_sum_ / (outHeight_ * outWidth_ / 4);
-	stats_.too_bright_ratio = (float)too_bright_sum_ / (outHeight_ * outWidth_ / 4);
-
-	/* calculate red and blue gains for simple AWB */
-	unsigned int rNumerat;
-	unsigned int bNumerat;
-
-	/* Clamp max gain at 4.0, this also avoids 0 division */
-	if (sumR_ <= sumG_ / 4)
-		rNumerat = 1024;
-	else
-		rNumerat = 256 * sumG_ / sumR_;
-
-	if (sumB_ <= sumG_ / 4)
-		bNumerat = 1024;
-	else
-		bNumerat = 256 * sumG_ / sumB_;
-
-	for (int i = 0; i < 256; i++) {
-		int idx;
-
-		/* Use gamma curve stored in green lookup, apply gamma after gain! */
-		idx = std::min({ i * rNumerat / 256U, 255U });
-		red_[i] = green_[idx];
-
-		idx = std::min({ i * bNumerat / 256U, 255U });
-		blue_[i] = green_[idx];
-	}
-}
-
 SizeRange SwIspLinaro::IspWorker::outSizesRaw10P(const Size &inSize)
 {
 	if (inSize.width < 2 || inSize.height < 2) {
@@ -449,17 +261,14 @@ unsigned int SwIspLinaro::IspWorker::outStrideRaw10P(const Size &outSize)
 	return outSize.width * 3;
 }
 
-SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
-	: swIsp_(swIsp)
+SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp, std::unique_ptr<SwStatsCpu> stats)
+	: swIsp_(swIsp), stats_(std::move(stats))
 {
 	debayerInfos_[formats::SBGGR10_CSI2P] = { formats::RGB888,
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine0,
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine1,
 						  NULL,
 						  NULL,
-						  &SwIspLinaro::IspWorker::statsBGGR10PLine0,
-						  NULL,
-						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGBRG10_CSI2P] = { formats::RGB888,
@@ -467,9 +276,6 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  &SwIspLinaro::IspWorker::debayerGBRG10PLine1,
 						  NULL,
 						  NULL,
-						  &SwIspLinaro::IspWorker::statsGBRG10PLine0,
-						  NULL,
-						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SGRBG10_CSI2P] = { formats::RGB888,
@@ -478,9 +284,6 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  &SwIspLinaro::IspWorker::debayerBGGR10PLine0,
 						  NULL,
 						  NULL,
-						  &SwIspLinaro::IspWorker::statsGRBG10PLine0,
-						  NULL,
-						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 	debayerInfos_[formats::SRGGB10_CSI2P] = { formats::RGB888,
@@ -489,9 +292,6 @@ SwIspLinaro::IspWorker::IspWorker(SwIspLinaro *swIsp)
 						  &SwIspLinaro::IspWorker::debayerGBRG10PLine0,
 						  NULL,
 						  NULL,
-						  &SwIspLinaro::IspWorker::statsRGGB10PLine0,
-						  NULL,
-						  &SwIspLinaro::IspWorker::finishRaw10PStats,
 						  &SwIspLinaro::IspWorker::outSizesRaw10P,
 						  &SwIspLinaro::IspWorker::outStrideRaw10P };
 }
@@ -558,6 +358,9 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 		return -EINVAL;
 	}
 
+	if (stats_->configure(inputCfg) != 0)
+		return -EINVAL;
+
 	/* check that:
 	 * - output format is valid
 	 * - output size matches the input size and is valid */
@@ -601,6 +404,8 @@ int SwIspLinaro::IspWorker::configure(const StreamConfiguration &inputCfg,
 	outStride_ = outputCfg.stride;
 	outWidth_  = outputCfg.size.width;
 	outHeight_ = outputCfg.size.height;
+
+	stats_->setWindow(Rectangle(0, 0, outWidth_, outHeight_));
 
 	LOG(SoftwareIsp, Info)
 		<< "SoftwareISP configuration: "
@@ -762,12 +567,7 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 		return;
 	}
 
-	sumR_ = 0;
-	sumB_ = 0;
-	sumG_ = 0;
-
-	bright_sum_ = 0;
-	too_bright_sum_ = 0;
+	stats_->startFrame();
 
 	const uint8_t *src = in.planes()[0].data();
 	uint8_t *dst = out.planes()[0].data();
@@ -775,9 +575,8 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 	if (debayerInfo_->debayer2) {
 		/* Skip first 4 lines for debayer interpolation purposes */
 		src += stride_ * 4;
-		int lines = outHeight_ / 4;
-		while (lines--) {
-			(this->*debayerInfo_->stats0)(src);
+		for (unsigned int y = 0; y < outHeight_; y += 4) {
+			stats_->processLine0(y, src, stride_);
 			(this->*debayerInfo_->debayer0)(dst, src);
 			src += stride_;
 			dst += outStride_;
@@ -786,7 +585,7 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 			src += stride_;
 			dst += outStride_;
 
-			(this->*debayerInfo_->stats2)(src);
+			stats_->processLine2(y, src, stride_);
 			(this->*debayerInfo_->debayer2)(dst, src);
 			src += stride_;
 			dst += outStride_;
@@ -798,9 +597,8 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 	} else {
 		/* Skip first 2 lines for debayer interpolation purposes */
 		src += stride_ * 2;
-		int lines = outHeight_ / 2;
-		while (lines--) {
-			(this->*debayerInfo_->stats0)(src);
+		for (unsigned int y = 0; y < outHeight_; y += 2) {
+			stats_->processLine0(y, src, stride_);
 			(this->*debayerInfo_->debayer0)(dst, src);
 			src += stride_;
 			dst += outStride_;
@@ -813,9 +611,34 @@ void SwIspLinaro::IspWorker::process(FrameBuffer *input, FrameBuffer *output)
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
-	(this->*debayerInfo_->finishStats)();
-	*swIsp_->sharedStats_ = stats_;
-	swIsp_->ispStatsReady.emit(0);
+	stats_->finishFrame();
+
+	/* calculate red and blue gains for simple AWB, FIXME move to IPA */
+	struct SwIspStats stats = stats_->getStats();
+	unsigned int rNumerat;
+	unsigned int bNumerat;
+
+	/* Clamp max gain at 4.0, this also avoids 0 division */
+	if (stats.sumR_ <= stats.sumG_ / 4)
+		rNumerat = 1024;
+	else
+		rNumerat = 256 * stats.sumG_ / stats.sumR_;
+
+	if (stats.sumB_ <= stats.sumG_ / 4)
+		bNumerat = 1024;
+	else
+		bNumerat = 256 * stats.sumG_ / stats.sumB_;
+
+	for (int i = 0; i < 256; i++) {
+		int idx;
+
+		/* Use gamma curve stored in green lookup, apply gamma after gain! */
+		idx = std::min({ i * rNumerat / 256U, 255U });
+		red_[i] = green_[idx];
+
+		idx = std::min({ i * bNumerat / 256U, 255U });
+		blue_[i] = green_[idx];
+	}
 
 	swIsp_->outputBufferReady.emit(output);
 	swIsp_->inputBufferReady.emit(input);
@@ -825,6 +648,11 @@ void SwIspLinaro::process(FrameBuffer *input, FrameBuffer *output)
 {
 	ispWorker_->invokeMethod(&SwIspLinaro::IspWorker::process,
 				 ConnectionTypeQueued, input, output);
+}
+
+void SwIspLinaro::statsReady(int dummy)
+{
+	ispStatsReady.emit(dummy);
 }
 
 } /* namespace libcamera */

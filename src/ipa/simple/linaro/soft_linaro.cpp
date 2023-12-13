@@ -16,7 +16,7 @@
 #include <libcamera/ipa/ipa_module_info.h>
 
 #include "libcamera/internal/camera_sensor.h"
-#include "libcamera/internal/software_isp/statistics-linaro.h"
+#include "libcamera/internal/software_isp/swisp_stats.h"
 
 #include "common/soft_base.h"
 

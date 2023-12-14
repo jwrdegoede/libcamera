@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
 #include "libcamera/internal/software_isp/swstats.h"
@@ -31,6 +32,12 @@ public:
 	const SharedFD &getStatsFD() { return sharedStats_.fd(); }
 	int configure(const StreamConfiguration &inputCfg);
 private:
+	int setupStandardBayerOrder(BayerFormat::Order order);
+	/* Bayer 8 bpp unpacked */
+	void statsBGGR8Line0(const uint8_t *src[]);
+	/* Bayer 10 bpp unpacked */
+	void statsBGGR10Line0(const uint8_t *src[]);
+	/* Bayer 10 bpp packed */
 	void statsBGGR10PLine0(const uint8_t *src[]);
 	void statsGBRG10PLine0(const uint8_t *src[]);
 	void resetStats(void);

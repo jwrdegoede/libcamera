@@ -59,6 +59,57 @@ static const unsigned int BLUE_Y_MUL = 29;		/* 0.11 * 256 */
 	stats_.sumG_ += sumG;				\
 	stats_.sumB_ += sumB;
 
+void SwStatsCpu::statsBGGR8Line0(const uint8_t *src, unsigned int stride)
+{
+	const uint8_t *src0 = src;
+	const uint8_t *src1 = src + stride;
+
+	SWISP_LINARO_START_LINE_STATS(uint8_t)
+
+	if (swap_lines_)
+		std::swap(src0, src1);
+
+	/* x += 4 sample every other 2x2 block */
+	for (int x = 0; x < (int)window_.width; x += 4) {
+		b  = src0[x];
+		g  = src0[x + 1];
+		g2 = src1[x];
+		r  = src1[x + 1];
+
+		g = (g + g2) / 2;
+
+		SWISP_LINARO_ACCUMULATE_LINE_STATS(1)
+	}
+
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
+void SwStatsCpu::statsBGGR10Line0(const uint8_t *src, unsigned int stride)
+{
+	const uint16_t *src0 = (const uint16_t *)src;
+	const uint16_t *src1 = (const uint16_t *)(src + stride);
+
+	SWISP_LINARO_START_LINE_STATS(uint16_t)
+
+	if (swap_lines_)
+		std::swap(src0, src1);
+
+	/* x += 4 sample every other 2x2 block */
+	for (int x = 0; x < (int)window_.width; x += 4) {
+		b  = src0[x];
+		g  = src0[x + 1];
+		g2 = src1[x];
+		r  = src1[x + 1];
+
+		g = (g + g2) / 2;
+
+		/* divide Y by 4 for 10 -> 8 bpp value */
+		SWISP_LINARO_ACCUMULATE_LINE_STATS(4)
+	}
+
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
 static inline __attribute__((always_inline)) void
 statsBayer10P(const int width, const uint8_t *src0, const uint8_t *src1, bool bggr, SwIspStats &stats_)
 {
@@ -124,6 +175,39 @@ void SwStatsCpu::finishStats(void)
 	statsReady.emit(0);
 }
 
+/*
+ * Check if order is a standard Bayer order and setup x_shift_ and swap_lines_
+ * so that a single BGGR stats function can be used for all 4 standard orders.
+ */
+int SwStatsCpu::setupStandardBayerOrder(BayerFormat::Order order)
+{
+	switch (order) {
+	case BayerFormat::BGGR:
+		x_shift_ = 0;
+		swap_lines_ = false;
+		break;
+	case BayerFormat::GBRG:
+		x_shift_ = 1; /* BGGR -> GBRG */
+		swap_lines_ = false;
+		break;
+	case BayerFormat::GRBG:
+		x_shift_ = 0;
+		swap_lines_ = true; /* BGGR -> GRBG */
+		break;
+	case BayerFormat::RGGB:
+		x_shift_ = 1; /* BGGR -> GBRG */
+		swap_lines_ = true; /* GBRG -> RGGB */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	patternSize_.height = 2;
+	patternSize_.width = 2;
+	y_skip_mask_ = 0x02; /* Skip every 3th and 4th line */
+	return 0;
+}
+
 int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 {
 	BayerFormat bayerFormat =
@@ -131,6 +215,19 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 
 	startFrame_ = (SwStats::statsVoidFn)&SwStatsCpu::resetStats;
 	finishFrame_ = (SwStats::statsVoidFn)&SwStatsCpu::finishStats;
+
+	if (bayerFormat.packing == BayerFormat::Packing::None &&
+	    setupStandardBayerOrder(bayerFormat.order) == 0) {
+		bpp_ = (bayerFormat.bitDepth + 7) & ~7;
+		switch (bayerFormat.bitDepth) {
+		case 8:
+			stats0_ = (SwStats::statsProcessFn)&SwStatsCpu::statsBGGR8Line0;
+			return 0;
+		case 10:
+			stats0_ = (SwStats::statsProcessFn)&SwStatsCpu::statsBGGR10Line0;
+			return 0;
+		}
+	}
 
 	if (bayerFormat.bitDepth == 10 &&
 	    bayerFormat.packing == BayerFormat::Packing::CSI2) {

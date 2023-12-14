@@ -70,6 +70,46 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	*dst++ = red_[curr[x] / (div)]; \
 	x++;
 
+void DebayerCpu::debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
+{
+	DECLARE_SRC_POINTERS(uint8_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		BGGR_BGR888(1, 1, 1)
+		GBRG_BGR888(1, 1, 1)
+	}
+}
+
+void DebayerCpu::debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
+{
+	DECLARE_SRC_POINTERS(uint8_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		GRBG_BGR888(1, 1, 1)
+		RGGB_BGR888(1, 1, 1)
+	}
+}
+
+void DebayerCpu::debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
+{
+	DECLARE_SRC_POINTERS(uint16_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		BGGR_BGR888(1, 1, 4)
+		GBRG_BGR888(1, 1, 4)
+	}
+}
+
+void DebayerCpu::debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
+{
+	DECLARE_SRC_POINTERS(uint16_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		GRBG_BGR888(1, 1, 4)
+		RGGB_BGR888(1, 1, 4)
+	}
+}
+
 void DebayerCpu::debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
 {
 	const int width_in_bytes = window_.width * 5 / 4;
@@ -151,6 +191,16 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputFormat);
 
+	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10) &&
+	    bayerFormat.packing == BayerFormat::Packing::None &&
+	    isStandardBayerOrder(bayerFormat.order)) {
+		config.bpp = (bayerFormat.bitDepth + 7) & ~7;
+		config.patternSize.width = 2;
+		config.patternSize.height = 2;
+		config.outputFormats = std::vector<PixelFormat>({ formats::RGB888 });
+		return 0;
+	}
+
 	if (bayerFormat.bitDepth == 10 &&
 	    bayerFormat.packing == BayerFormat::Packing::CSI2 &&
 	    isStandardBayerOrder(bayerFormat.order)) {
@@ -178,6 +228,32 @@ int DebayerCpu::getOutputConfig(PixelFormat outputFormat, DebayerOutputConfig &c
 	return -EINVAL;
 }
 
+/*
+ * Check for standard Bayer orders and set x_shift_ and swap debayer0/1, so that
+ * a single pair of BGGR debayer functions can be used for all 4 standard orders.
+ */
+int DebayerCpu::setupStandardBayerOrder(BayerFormat::Order order)
+{
+	switch (order) {
+	case BayerFormat::BGGR:
+		break;
+	case BayerFormat::GBRG:
+		x_shift_ = 1; /* BGGR -> GBRG */
+		break;
+	case BayerFormat::GRBG:
+		std::swap(debayer0_, debayer1_); /* BGGR -> GRBG */
+		break;
+	case BayerFormat::RGGB:
+		x_shift_ = 1; /* BGGR -> GBRG */
+		std::swap(debayer0_, debayer1_); /* GBRG -> RGGB */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* TODO: this ignores outputFormat since there is only 1 supported outputFormat for now */
 int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat, [[maybe_unused]] PixelFormat outputFormat)
 {
@@ -185,6 +261,23 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat, [[maybe_unused]] Pi
 		BayerFormat::fromPixelFormat(inputFormat);
 
 	x_shift_ = 0;
+
+	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10) &&
+	    bayerFormat.packing == BayerFormat::Packing::None &&
+	    isStandardBayerOrder(bayerFormat.order)) {
+		switch (bayerFormat.bitDepth) {
+		case 8:
+			debayer0_ = &DebayerCpu::debayer8_BGBG_BGR888;
+			debayer1_ = &DebayerCpu::debayer8_GRGR_BGR888;
+			break;
+		case 10:
+			debayer0_ = &DebayerCpu::debayer10_BGBG_BGR888;
+			debayer1_ = &DebayerCpu::debayer10_GRGR_BGR888;
+			break;
+		}
+		setupStandardBayerOrder(bayerFormat.order);
+		return 0;
+	}
 
 	if (bayerFormat.bitDepth == 10 &&
 	    bayerFormat.packing == BayerFormat::Packing::CSI2) {

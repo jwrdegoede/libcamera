@@ -17,6 +17,7 @@
 
 #include <libcamera/base/object.h>
 
+#include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/software_isp/swstats_cpu.h"
 #include "libcamera/internal/software_isp/debayer.h"
 
@@ -75,11 +76,21 @@ public:
 	 * \return The output frame size.
 	 */
 	unsigned int frameSize() { return outputConfig_.frameSize; }
+
 private:
 	void initLinePointers(const uint8_t *linePointers[], const uint8_t *src);
 	void shiftLinePointers(const uint8_t *linePointers[], const uint8_t *src);
 	void process2(const uint8_t *src, uint8_t *dst);
 	void process4(const uint8_t *src, uint8_t *dst);
+	/* 8-bit raw bayer format */
+	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* unpacked 10-bit raw bayer format */
+	void debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* unpacked 12-bit raw bayer format */
+	void debayer12_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer12_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
 	/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
 	void debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
@@ -103,6 +114,7 @@ private:
 
 	int getInputConfig(PixelFormat inputFormat, DebayerInputConfig &config);
 	int getOutputConfig(PixelFormat outputFormat, DebayerOutputConfig &config);
+	int setupStandardBayerOrder(BayerFormat::Order order);
 	int setDebayerFunctions(PixelFormat inputFormat, PixelFormat outputFormat);
 
 	uint8_t gamma_[1024];
@@ -119,6 +131,7 @@ private:
 	std::unique_ptr<SwStatsCpu> stats_;
 	uint8_t *lineBuffers_[5];
 	unsigned int lineBufferIndex_;
+	unsigned int x_shift_; /* Offset of 0/1 applied to window_.x */
 	bool enableInputMemcpy_;
 	float gamma_correction_;
 	int measuredFrames_;

@@ -17,6 +17,7 @@
 
 #include <libcamera/geometry.h>
 
+#include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
 
@@ -119,6 +120,14 @@ private:
 	 */
 	typedef void (SwStatsCpu::*statsProcessFn)(const uint8_t *src[]);
 
+	int setupStandardBayerOrder(BayerFormat::Order order);
+	/* Bayer 8 bpp unpacked */
+	void statsBGGR8Line0(const uint8_t *src[]);
+	/* Bayer 10 bpp unpacked */
+	void statsBGGR10Line0(const uint8_t *src[]);
+	/* Bayer 12 bpp unpacked */
+	void statsBGGR12Line0(const uint8_t *src[]);
+	/* Bayer 10 bpp packed */
 	void statsBGGR10PLine0(const uint8_t *src[]);
 	void statsGBRG10PLine0(const uint8_t *src[]);
 

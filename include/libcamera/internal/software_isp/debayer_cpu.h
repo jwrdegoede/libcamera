@@ -125,6 +125,7 @@ private:
 	std::unique_ptr<SwStatsCpu> stats_;
 	unsigned int x_shift_; /* Offset of 0/1 applied to window_.x */
 	float gamma_correction_;
+	bool swapRedBlueGains_;
 };
 
 } /* namespace libcamera */

@@ -133,6 +133,7 @@ private:
 	unsigned int lineBufferIndex_;
 	unsigned int x_shift_; /* Offset of 0/1 applied to window_.x */
 	bool enableInputMemcpy_;
+	bool swapRedBlueGains_;
 	float gamma_correction_;
 	int measuredFrames_;
 	int64_t frameProcessTime_;

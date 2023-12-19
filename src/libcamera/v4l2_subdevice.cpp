@@ -128,6 +128,7 @@ const std::map<uint32_t, V4L2SubdeviceFormatInfo> formatInfoMap = {
 	{ MEDIA_BUS_FMT_SGBRG10_1X10, { 10, "SGBRG10_1X10", PixelFormatInfo::ColourEncodingRAW } },
 	{ MEDIA_BUS_FMT_SGRBG10_1X10, { 10, "SGRBG10_1X10", PixelFormatInfo::ColourEncodingRAW } },
 	{ MEDIA_BUS_FMT_SRGGB10_1X10, { 10, "SRGGB10_1X10", PixelFormatInfo::ColourEncodingRAW } },
+	{ MEDIA_BUS_FMT_SIGIG_GBGR_IGIG_GRGB10_1X10, { 10, "SIGIG_GBGR_IGIG_GRGB10_1X10", PixelFormatInfo::ColourEncodingRAW } },
 	{ MEDIA_BUS_FMT_SBGGR12_1X12, { 12, "SBGGR12_1X12", PixelFormatInfo::ColourEncodingRAW } },
 	{ MEDIA_BUS_FMT_SGBRG12_1X12, { 12, "SGBRG12_1X12", PixelFormatInfo::ColourEncodingRAW } },
 	{ MEDIA_BUS_FMT_SGRBG12_1X12, { 12, "SGRBG12_1X12", PixelFormatInfo::ColourEncodingRAW } },

@@ -599,6 +599,16 @@ const std::map<PixelFormat, PixelFormatInfo> pixelFormatInfo{
 		.pixelsPerGroup = 2,
 		.planes = {{ { 4, 1 }, { 0, 0 }, { 0, 0 } }},
 	} },
+	{ formats::SIGIG_GBGR_IGIG_GRGB10, {
+		.name = "SIGIG_GBGR_IGIG_GRGB10",
+		.format = formats::SIGIG_GBGR_IGIG_GRGB10,
+		.v4l2Formats = { V4L2PixelFormat(V4L2_PIX_FMT_SIGIG_GBGR_IGIG_GRGB10), },
+		.bitsPerPixel = 10,
+		.colourEncoding = PixelFormatInfo::ColourEncodingRAW,
+		.packed = false,
+		.pixelsPerGroup = 4,
+		.planes = {{ { 4, 1 }, { 0, 0 }, { 0, 0 } }},
+	} },
 	{ formats::SBGGR10_CSI2P, {
 		.name = "SBGGR10_CSI2P",
 		.format = formats::SBGGR10_CSI2P,
@@ -638,6 +648,16 @@ const std::map<PixelFormat, PixelFormatInfo> pixelFormatInfo{
 		.packed = true,
 		.pixelsPerGroup = 4,
 		.planes = {{ { 5, 1 }, { 0, 0 }, { 0, 0 } }},
+	} },
+	{ formats::SIGIG_GBGR_IGIG_GRGB10_CSI2P, {
+		.name = "SIGIG_GBGR_IGIG_GRGB10_CSI2P",
+		.format = formats::SIGIG_GBGR_IGIG_GRGB10_CSI2P,
+		.v4l2Formats = { V4L2PixelFormat(V4L2_PIX_FMT_SIGIG_GBGR_IGIG_GRGB10P), },
+		.bitsPerPixel = 10,
+		.colourEncoding = PixelFormatInfo::ColourEncodingRAW,
+		.packed = true,
+		.pixelsPerGroup = 4,
+		.planes = {{ { 4, 1 }, { 0, 0 }, { 0, 0 } }},
 	} },
 	{ formats::SBGGR12, {
 		.name = "SBGGR12",

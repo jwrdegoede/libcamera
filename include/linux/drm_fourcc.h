@@ -405,6 +405,8 @@ extern "C" {
 #define DRM_FORMAT_SGRBG10	fourcc_code('B', 'A', '1', '0')
 #define DRM_FORMAT_SGBRG10	fourcc_code('G', 'B', '1', '0')
 #define DRM_FORMAT_SBGGR10	fourcc_code('B', 'G', '1', '0')
+/* Mixed 10 bit bayer + ir pixel pattern found on Omnivision ov01a1s */
+#define DRM_FORMAT_SIGIG_GBGR_IGIG_GRGB10 fourcc_code('O', 'V', '1', 'S')
 
 /* 12-bit Bayer formats */
 #define DRM_FORMAT_SRGGB12	fourcc_code('R', 'G', '1', '2')

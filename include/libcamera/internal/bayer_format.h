@@ -27,7 +27,8 @@ public:
 		GBRG = 1,
 		GRBG = 2,
 		RGGB = 3,
-		MONO = 4
+		MONO = 4,
+		IGIG_GBGR_IGIG_GRGB = 5,
 	};
 
 	enum class Packing : uint16_t {

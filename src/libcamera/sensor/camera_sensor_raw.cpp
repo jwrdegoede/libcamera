@@ -641,6 +641,9 @@ int CameraSensorRaw::initProperties()
 	case BayerFormat::RGGB:
 		cfa = properties::draft::RGGB;
 		break;
+	case BayerFormat::IGIG_GBGR_IGIG_GRGB:
+		cfa = properties::draft::RGB; /* FIXME not accurate */
+		break;
 	case BayerFormat::MONO:
 	default:
 		cfa = properties::draft::MONO;

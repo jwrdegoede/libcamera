@@ -21,6 +21,9 @@
 
 namespace libcamera {
 
+// HACK HACK
+bool is_ov01a1s = false;
+
 LOG_DEFINE_CATEGORY(CameraSensor)
 
 /**

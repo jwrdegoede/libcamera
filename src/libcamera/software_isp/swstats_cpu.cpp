@@ -19,6 +19,8 @@
 
 namespace libcamera {
 
+extern bool is_ov01a1s;
+
 SwStatsCpu::SwStatsCpu()
 	: SwStats()
 {
@@ -274,6 +276,9 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 {
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputCfg.pixelFormat);
+
+	if (is_ov01a1s)
+		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
 
 	startFrame_ = (SwStats::statsVoidFn)&SwStatsCpu::resetStats;
 	finishFrame_ = (SwStats::statsVoidFn)&SwStatsCpu::finishStats;

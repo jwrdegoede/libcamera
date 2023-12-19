@@ -19,6 +19,8 @@
 
 namespace libcamera {
 
+extern bool is_ov01a1s;
+
 /**
  * \class SwStatsCpu
  * \brief Class for gathering statistics on the CPU
@@ -332,6 +334,9 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 {
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputCfg.pixelFormat);
+
+	if (is_ov01a1s)
+		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
 
 	if (bayerFormat.packing == BayerFormat::Packing::None &&
 	    setupStandardBayerOrder(bayerFormat.order) == 0) {

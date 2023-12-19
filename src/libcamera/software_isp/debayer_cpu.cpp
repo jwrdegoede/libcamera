@@ -23,6 +23,8 @@
 
 namespace libcamera {
 
+extern bool is_ov01a1s;
+
 /**
  * \class DebayerCpu
  * \brief Class for debayering on the CPU
@@ -487,6 +489,9 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputFormat);
 
+	if (is_ov01a1s)
+		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
+
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10 || bayerFormat.bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
 	    isStandardBayerOrder(bayerFormat.order)) {
@@ -563,6 +568,9 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat, PixelFormat outputF
 {
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputFormat);
+
+	if (is_ov01a1s)
+		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
 
 	xShift_ = 0;
 	swapRedBlueGains_ = false;

@@ -122,7 +122,7 @@
 #define MEDIA_BUS_FMT_YUV16_1X48		0x202a
 #define MEDIA_BUS_FMT_UYYVYY16_0_5X48		0x202b
 
-/* Bayer - next is	0x3025 */
+/* Bayer - next is	0x3026 */
 #define MEDIA_BUS_FMT_SBGGR8_1X8		0x3001
 #define MEDIA_BUS_FMT_SGBRG8_1X8		0x3013
 #define MEDIA_BUS_FMT_SGRBG8_1X8		0x3002
@@ -159,6 +159,8 @@
 #define MEDIA_BUS_FMT_SGBRG20_1X20		0x3022
 #define MEDIA_BUS_FMT_SGRBG20_1X20		0x3023
 #define MEDIA_BUS_FMT_SRGGB20_1X20		0x3024
+/* Mixed bayer + ir pixel pattern found on ov01a1s */
+#define MEDIA_BUS_FMT_SIGIG_GBGR_IGIG_GRGB10_1X10 0x3025
 
 /* JPEG compressed formats - next is	0x4002 */
 #define MEDIA_BUS_FMT_JPEG_1X8			0x4001

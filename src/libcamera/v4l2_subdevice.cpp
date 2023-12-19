@@ -511,6 +511,13 @@ const std::map<uint32_t, MediaBusFormatInfo> mediaBusFormatInfo{
 		.bitsPerPixel = 8,
 		.colourEncoding = PixelFormatInfo::ColourEncodingRAW,
 	} },
+	{ MEDIA_BUS_FMT_SIGIG_GBGR_IGIG_GRGB10_1X10, {
+		.name = "SIGIG_GBGR_IGIG_GRGB10_1X10",
+		.code = MEDIA_BUS_FMT_SIGIG_GBGR_IGIG_GRGB10_1X10,
+		.type = MediaBusFormatInfo::Type::Image,
+		.bitsPerPixel = 10,
+		.colourEncoding = PixelFormatInfo::ColourEncodingRAW,
+	} },
 	{ MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8, {
 		.name = "SBGGR10_DPCM8_1X8",
 		.code = MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8,

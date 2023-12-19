@@ -526,6 +526,9 @@ int CameraSensor::initProperties()
 		case BayerFormat::MONO:
 			cfa = properties::draft::MONO;
 			break;
+		case BayerFormat::IGIG_GBGR_IGIG_GRGB:
+			cfa = properties::draft::RGB;
+			break;
 		}
 
 		properties_.set(properties::draft::ColorFilterArrangement, cfa);

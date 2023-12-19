@@ -23,6 +23,8 @@
 
 namespace libcamera {
 
+extern bool is_ov01a1s;
+
 DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	: stats_(std::move(stats)), gamma_correction_(1.0)
 {
@@ -471,6 +473,9 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputFormat);
 
+	if (is_ov01a1s)
+		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
+
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10 || bayerFormat.bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
 	    isStandardBayerOrder(bayerFormat.order)) {
@@ -547,6 +552,9 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat, PixelFormat outputF
 {
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputFormat);
+
+	if (is_ov01a1s)
+		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
 
 	swapRedBlueGains_ = false;
 

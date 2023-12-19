@@ -34,6 +34,9 @@
 
 namespace libcamera {
 
+// HACK HACK
+bool is_ov01a1s = false;
+
 LOG_DEFINE_CATEGORY(CameraSensor)
 
 /**
@@ -425,6 +428,9 @@ int CameraSensor::initProperties()
 {
 	model_ = subdev_->model();
 	properties_.set(properties::Model, utils::toAscii(model_));
+
+	if (model_ == "ov01a1s")
+		is_ov01a1s = true;
 
 	/* Generate a unique ID for the sensor. */
 	int ret = generateId();

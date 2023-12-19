@@ -41,6 +41,9 @@
 
 namespace libcamera {
 
+// HACK HACK
+bool is_ov01a1s = false;
+
 class BayerFormat;
 class CameraLens;
 class MediaEntity;
@@ -555,6 +558,9 @@ int CameraSensorLegacy::initProperties()
 {
 	model_ = subdev_->model();
 	properties_.set(properties::Model, utils::toAscii(model_));
+
+	if (model_ == "ov01a1s")
+		is_ov01a1s = true;
 
 	/* Generate a unique ID for the sensor. */
 	int ret = generateId();

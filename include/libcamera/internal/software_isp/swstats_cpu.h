@@ -83,10 +83,14 @@ private:
 	/* Bayer 10 bpp packed */
 	void statsBGGR10PLine0(const uint8_t *src[]);
 	void statsGBRG10PLine0(const uint8_t *src[]);
+	/* IGIG_GBGR_IGIG_GRGB 10 bpp unpacked */
+	void statsRGBIR10Line0(const uint8_t *src[]);
+	void statsRGBIR10Line2(const uint8_t *src[]);
 	/* YUV420 3 planes */
 	void statsYUV420Line0(const uint8_t *src[]);
 
 	void processBayerFrame2(MappedFrameBuffer &in);
+	void processBayerFrame4(MappedFrameBuffer &in);
 	void processYUV420Frame(MappedFrameBuffer &in);
 	void finishYUV420Frame();
 

@@ -289,6 +289,68 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
+void SwStatsCpu::statsRGBIR10Line0(const uint8_t *src[])
+{
+	const uint16_t *src0_16 = (const uint16_t *)src[2] + window_.x;
+	const uint16_t *src1_16 = (const uint16_t *)src[3] + window_.x;
+	uint16_t g3, g4;
+
+	SWSTATS_START_LINE_STATS(uint16_t)
+
+	/* x += 8 sample every other 4x4 block */
+	for (int x = 0; x < (int)window_.width; x += 8) {
+		/* IGIG */
+		//i = src0_16[x];
+		g2 = src0_16[x + 1];
+		//i = src0_16[x + 2];
+		g4 = src0_16[x + 3];
+
+		/* GBGR */
+		g = src1_16[x];
+		b = src1_16[x + 1];
+		g3 = src1_16[x + 2];
+		r = src1_16[x + 3];
+
+		g = (g + g2 + g3 + g4) / 4;
+
+		/* divide Y by 4 for 10 -> 8 bpp value */
+		SWSTATS_ACCUMULATE_LINE_STATS(4)
+	}
+
+	SWSTATS_FINISH_LINE_STATS()
+}
+
+void SwStatsCpu::statsRGBIR10Line2(const uint8_t *src[])
+{
+	const uint16_t *src0_16 = (const uint16_t *)src[2] + window_.x;
+	const uint16_t *src1_16 = (const uint16_t *)src[3] + window_.x;
+	uint16_t g3, g4;
+
+	SWSTATS_START_LINE_STATS(uint16_t)
+
+	/* x += 8 sample every other 4x4 block */
+	for (int x = 0; x < (int)window_.width; x += 8) {
+		/* IGIG */
+		//i = src0_16[x];
+		g2 = src0_16[x + 1];
+		//i = src0_16[x + 2];
+		g4 = src0_16[x + 3];
+
+		/* GRGB */
+		g = src1_16[x];
+		r = src1_16[x + 1];
+		g3 = src1_16[x + 2];
+		b = src1_16[x + 3];
+
+		g = (g + g2 + g3 + g4) / 4;
+
+		/* divide Y by 4 for 10 -> 8 bpp value */
+		SWSTATS_ACCUMULATE_LINE_STATS(4)
+	}
+
+	SWSTATS_FINISH_LINE_STATS()
+}
+
 void SwStatsCpu::statsYUV420Line0(const uint8_t *src[])
 {
 	uint64_t sumY = 0;
@@ -459,6 +521,20 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		}
 	}
 
+	if (bayerFormat.bitDepth == 10 &&
+	    bayerFormat.packing == BayerFormat::Packing::None &&
+	    bayerFormat.order == BayerFormat::IGIG_GBGR_IGIG_GRGB) {
+		patternSize_.height = 4;
+		patternSize_.width = 4;
+		ySkipMask_ = 0x04;
+		xShift_ = 0;
+		processFrame_ = &SwStatsCpu::processBayerFrame4;
+		swapLines_ = false;
+		stats0_ = &SwStatsCpu::statsRGBIR10Line0;
+		stats2_ = &SwStatsCpu::statsRGBIR10Line2;
+		return 0;
+	}
+
 	LOG(SwStatsCpu, Info)
 		<< "Unsupported input format " << inputCfg.pixelFormat.toString();
 	return -EINVAL;
@@ -537,6 +613,33 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 		linePointers[1] = src;
 		linePointers[2] = src + stride_;
 		(this->*stats0_)(linePointers);
+		src += stride_ * 2;
+	}
+}
+
+void SwStatsCpu::processBayerFrame4(MappedFrameBuffer &in)
+{
+	const uint8_t *src = in.planes()[0].data();
+	const uint8_t *linePointers[4];
+
+	/* Adjust src for starting at window_.y */
+	src += window_.y * stride_;
+
+	for (unsigned int y = 0; y < window_.height; y += 4) {
+		if (y & ySkipMask_) {
+			src += stride_ * 4;
+			continue;
+		}
+
+		/* linePointers[0] and [1] are not used by 4 line pattern stat functions */
+		linePointers[2] = src;
+		linePointers[3] = src + stride_;
+		(this->*stats0_)(linePointers);
+		src += stride_ * 2;
+
+		linePointers[2] = src;
+		linePointers[3] = src + stride_;
+		(this->*stats2_)(linePointers);
 		src += stride_ * 2;
 	}
 }

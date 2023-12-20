@@ -98,6 +98,11 @@ private:
 	void debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* IGIG_GBGR_IGIG_GRGB  unpacked 10-bit raw bayer format */
+	void debayerIGIG10Line0(uint8_t *dst, const uint8_t *src[]);
+	void debayerGBGR10Line1(uint8_t *dst, const uint8_t *src[]);
+	void debayerIGIG10Line2(uint8_t *dst, const uint8_t *src[]);
+	void debayerGRGB10Line3(uint8_t *dst, const uint8_t *src[]);
 
 	struct DebayerInputConfig {
 		Size patternSize;

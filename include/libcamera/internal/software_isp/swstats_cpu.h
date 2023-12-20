@@ -40,6 +40,9 @@ private:
 	/* Bayer 10 bpp packed */
 	void statsBGGR10PLine0(const uint8_t *src, unsigned int stride);
 	void statsGBRG10PLine0(const uint8_t *src, unsigned int stride);
+	/* IGIG_GBGR_IGIG_GRGB 10 bpp unpacked */
+	void statsRGBIR10Line0(const uint8_t *src, unsigned int stride);
+	void statsRGBIR10Line2(const uint8_t *src, unsigned int stride);
 	void resetStats(void);
 	void finishStats(void);
 

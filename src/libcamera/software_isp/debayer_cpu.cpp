@@ -180,6 +180,230 @@ void DebayerCpu::debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
+void DebayerCpu::debayerIGIG10Line0(uint8_t *dst, const uint8_t *src)
+{
+	DECLARE_SRC_POINTERS(uint16_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		/*
+		 * IGIG line pixel 0: IGIGI
+		 *                    GBGRG
+		 *                    IGIGI
+		 *                    GRGBG
+		 *                    IGIGI
+		 */
+		*dst++ = blue_[(prev[x - 1] + next[x + 1]) / 8];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[(prev[x + 1] + next[x - 1]) / 8];
+		x++;
+
+		/*
+		 * IGIG line pixel 1: GIGIG
+		 *                    BGRGB
+		 *                    GIGIG
+		 *                    RGBGR
+		 *                    GIGIG
+		 */
+		*dst++ = blue_[next[x] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[prev[x] / 4];
+		x++;
+
+		/*
+		 * IGIG line pixel 2: IGIGI
+		 *                    GRGBG
+		 *                    IGIGI
+		 *                    GBGRG
+		 *                    IGIGI
+		 */
+		*dst++ = blue_[(prev[x + 1] + next[x - 1]) / 8];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[(prev[x - 1] + next[x + 1]) / 8];
+		x++;
+
+		/*
+		 * IGIG line pixel 3: GIGIG
+		 *                    RGBGR
+		 *                    GIGIG
+		 *                    BGRGB
+		 *                    GIGIG
+		 */
+		*dst++ = blue_[prev[x] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[next[x] / 4];
+		x++;
+	}
+}
+
+void DebayerCpu::debayerGBGR10Line1(uint8_t *dst, const uint8_t *src)
+{
+	const uint16_t *prev2 = (const uint16_t *)(src - inputConfig_.stride * 2);
+	const uint16_t *next2 = (const uint16_t *)(src + inputConfig_.stride * 2);
+	DECLARE_SRC_POINTERS(uint16_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		/*
+		 * GBGR line pixel 0: GBGRG
+		 *                    IGIGI
+		 *                    GRGBG
+		 *                    IGIGI
+		 *                    GBGRG
+		 */
+		*dst++ = blue_[curr[x + 1] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[curr[x - 1] / 4];
+		x++;
+
+		/*
+		 * GBGR line pixel 1: BGRGB
+		 *                    GIGIG
+		 *                    RGBGR
+		 *                    GIGIG
+		 *                    BGRGB
+		 */
+		*dst++ = blue_[curr[x] / 4];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[(curr[x - 2] + curr[x + 2] + prev2[x] + next2[x]) / 16];
+		x++;
+
+		/*
+		 * GBGR line pixel 2: GRGBG
+		 *                    IGIGI
+		 *                    GBGRG
+		 *                    IGIGI
+		 *                    GRGBG
+		 */
+		*dst++ = blue_[curr[x - 1] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[curr[x + 1] / 4];
+		x++;
+
+		/*
+		 * GBGR line pixel 3: RGBGR
+		 *                    GIGIG
+		 *                    BGRGB
+		 *                    GIGIG
+		 *                    RGBGR
+		 */
+		*dst++ = blue_[(curr[x - 2] + curr[x + 2] + prev2[x] + next2[x]) / 16];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[curr[x] / 4];
+		x++;
+	}
+}
+
+void DebayerCpu::debayerIGIG10Line2(uint8_t *dst, const uint8_t *src)
+{
+	DECLARE_SRC_POINTERS(uint16_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		/*
+		 * IGIG line pixel 0: IGIGI
+		 *                    GRGBG
+		 *                    IGIGI
+		 *                    GBGRG
+		 *                    IGIGI
+		 */
+		*dst++ = blue_[(prev[x + 1] + next[x - 1]) / 8];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[(prev[x - 1] + next[x + 1]) / 8];
+		x++;
+
+		/*
+		 * IGIG line pixel 1: GIGIG
+		 *                    RGBGR
+		 *                    GIGIG
+		 *                    BGRGB
+		 *                    GIGIG
+		 */
+		*dst++ = blue_[prev[x] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[next[x] / 4];
+		x++;
+
+		/*
+		 * IGIG line pixel 2: IGIGI
+		 *                    GBGRG
+		 *                    IGIGI
+		 *                    GRGBG
+		 *                    IGIGI
+		 */
+		*dst++ = blue_[(prev[x - 1] + next[x + 1]) / 8];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[(prev[x + 1] + next[x - 1]) / 8];
+		x++;
+
+		/*
+		 * IGIG line pixel 3: GIGIG
+		 *                    BGRGB
+		 *                    GIGIG
+		 *                    RGBGR
+		 *                    GIGIG
+		 */
+		*dst++ = blue_[next[x] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[prev[x] / 4];
+		x++;
+	}
+}
+
+void DebayerCpu::debayerGRGB10Line3(uint8_t *dst, const uint8_t *src)
+{
+	const uint16_t *prev2 = (const uint16_t *)(src - inputConfig_.stride * 2);
+	const uint16_t *next2 = (const uint16_t *)(src + inputConfig_.stride * 2);
+	DECLARE_SRC_POINTERS(uint16_t)
+
+	for (int x = 0; x < (int)window_.width;) {
+		/*
+		 * GRGB line pixel 0: GRGBG
+		 *                    IGIGI
+		 *                    GBGRG
+		 *                    IGIGI
+		 *                    GRGBG
+		 */
+		*dst++ = blue_[curr[x - 1] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[curr[x + 1] / 4];
+		x++;
+
+		/*
+		 * GRGB line pixel 1: RGBGR
+		 *                    GIGIG
+		 *                    BGRGB
+		 *                    GIGIG
+		 *                    RGBGR
+		 */
+		*dst++ = blue_[(curr[x - 2] + curr[x + 2] + prev2[x] + next2[x]) / 16];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[curr[x] / 4];
+		x++;
+
+		/*
+		 * GRGB line pixel 2: GBGRG
+		 *                    IGIGI
+		 *                    GRGBG
+		 *                    IGIGI
+		 *                    GBGRG
+		 */
+		*dst++ = blue_[curr[x + 1] / 4];
+		*dst++ = green_[curr[x] / 4];
+		*dst++ = red_[curr[x - 1] / 4];
+		x++;
+
+		/*
+		 * GRGB line pixel 3: BGRGB
+		 *                    GIGIG
+		 *                    RGBGR
+		 *                    GIGIG
+		 *                    BGRGB
+		 */
+		*dst++ = blue_[curr[x] / 4];
+		*dst++ = green_[(curr[x - 1] + curr[x + 1] + prev[x] + next[x]) / 16];
+		*dst++ = red_[(curr[x - 2] + curr[x + 2] + prev2[x] + next2[x]) / 16];
+		x++;
+	}
+}
+
 static bool isStandardBayerOrder(BayerFormat::Order order)
 {
 	return order == BayerFormat::BGGR || order == BayerFormat::GBRG ||
@@ -209,6 +433,14 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 		config.patternSize.height = 2;
 		config.outputFormats = std::vector<PixelFormat>({ formats::RGB888, formats::BGR888 });
 		return 0;
+	}
+
+	if (bayerFormat.bitDepth == 10 && bayerFormat.packing == BayerFormat::Packing::None &&
+	    bayerFormat.order == BayerFormat::IGIG_GBGR_IGIG_GRGB) {
+		config.bpp = 16;
+		config.patternSize.height = 4;
+		config.patternSize.width = 4;
+		config.outputFormats = std::vector<PixelFormat>({ formats::RGB888 });
 	}
 
 	LOG(Debayer, Info)
@@ -330,6 +562,16 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat, PixelFormat outputF
 		default:
 			break;
 		}
+	}
+
+	if (bayerFormat.bitDepth == 10 &&
+	    bayerFormat.packing == BayerFormat::Packing::None &&
+	    bayerFormat.order == BayerFormat::IGIG_GBGR_IGIG_GRGB) {
+		debayer0_ = &DebayerCpu::debayerIGIG10Line0;
+		debayer1_ = &DebayerCpu::debayerGBGR10Line1;
+		debayer2_ = &DebayerCpu::debayerIGIG10Line2;
+		debayer3_ = &DebayerCpu::debayerGRGB10Line3;
+		return 0;
 	}
 
 invalid_fmt:

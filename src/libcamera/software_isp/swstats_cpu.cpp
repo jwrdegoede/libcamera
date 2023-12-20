@@ -161,6 +161,68 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
 	statsBayer10P(window_.width, src0, src1, false, stats_);
 }
 
+void SwStatsCpu::statsRGBIR10Line0(const uint8_t *src[])
+{
+	const uint16_t *src0_16 = (const uint16_t *)src[2] + window_.x;
+	const uint16_t *src1_16 = (const uint16_t *)src[3] + window_.x;
+	uint16_t g3, g4;
+
+	SWISP_LINARO_START_LINE_STATS(uint16_t)
+
+	/* x += 8 sample every other 4x4 block */
+	for (int x = 0; x < (int)window_.width; x += 8) {
+		/* IGIG */
+		//i = src0_16[x];
+		g2 = src0_16[x + 1];
+		//i = src0_16[x + 2];
+		g4 = src0_16[x + 3];
+
+		/* GBGR */
+		g = src1_16[x];
+		b = src1_16[x + 1];
+		g3 = src1_16[x + 2];
+		r = src1_16[x + 3];
+
+		g = (g + g2 + g3 + g4) / 4;
+
+		/* divide Y by 4 for 10 -> 8 bpp value */
+		SWISP_LINARO_ACCUMULATE_LINE_STATS(4)
+	}
+
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
+void SwStatsCpu::statsRGBIR10Line2(const uint8_t *src[])
+{
+	const uint16_t *src0_16 = (const uint16_t *)src[2] + window_.x;
+	const uint16_t *src1_16 = (const uint16_t *)src[3] + window_.x;
+	uint16_t g3, g4;
+
+	SWISP_LINARO_START_LINE_STATS(uint16_t)
+
+	/* x += 8 sample every other 4x4 block */
+	for (int x = 0; x < (int)window_.width; x += 8) {
+		/* IGIG */
+		//i = src0_16[x];
+		g2 = src0_16[x + 1];
+		//i = src0_16[x + 2];
+		g4 = src0_16[x + 3];
+
+		/* GRGB */
+		g = src1_16[x];
+		r = src1_16[x + 1];
+		g3 = src1_16[x + 2];
+		b = src1_16[x + 3];
+
+		g = (g + g2 + g3 + g4) / 4;
+
+		/* divide Y by 4 for 10 -> 8 bpp value */
+		SWISP_LINARO_ACCUMULATE_LINE_STATS(4)
+	}
+
+	SWISP_LINARO_FINISH_LINE_STATS()
+}
+
 void SwStatsCpu::resetStats(void)
 {
 	stats_.sumR_ = 0;
@@ -251,6 +313,20 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		default:
 			break;
 		}
+	}
+
+	if (bayerFormat.bitDepth == 10 &&
+	    bayerFormat.packing == BayerFormat::Packing::None &&
+	    bayerFormat.order == BayerFormat::IGIG_GBGR_IGIG_GRGB) {
+		bpp_ = 16;
+		patternSize_.height = 4;
+		patternSize_.width = 4;
+		y_skip_mask_ = 0x04;
+		x_shift_ = 0;
+		swap_lines_ = false;
+		stats0_ = (SwStats::statsProcessFn)&SwStatsCpu::statsRGBIR10Line0;
+		stats2_ = (SwStats::statsProcessFn)&SwStatsCpu::statsRGBIR10Line2;
+		return 0;
 	}
 
 	LOG(SwStats, Info)

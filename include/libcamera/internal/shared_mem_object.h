@@ -19,10 +19,20 @@
 
 namespace libcamera {
 
+/**
+ * \class SharedMemObject
+ * \brief Helper class for shared memory allocations.
+ *
+ * Takes a template T which is used to indicate the
+ * data type of the object stored.
+ */
 template<class T>
 class SharedMemObject
 {
 public:
+	/**
+	 * \brief The size of the object that is going to be stored here.
+	 */
 	static constexpr std::size_t SIZE = sizeof(T);
 
 	SharedMemObject()
@@ -30,6 +40,11 @@ public:
 	{
 	}
 
+	/**
+	 * \brief Contstructor for the SharedMemObject.
+	 * \param[in] name The requested name.
+	 * \param[in] args Any additional args.
+	 */
 	template<class... Args>
 	SharedMemObject(const std::string &name, Args &&...args)
 		: name_(name), obj_(nullptr)
@@ -57,6 +72,10 @@ public:
 		obj_ = new (mem) T(std::forward<Args>(args)...);
 	}
 
+	/**
+	 * \brief Move constructor for SharedMemObject.
+	 * \param[in] rhs The object to move.
+	 */
 	SharedMemObject(SharedMemObject<T> &&rhs)
 	{
 		this->name_ = std::move(rhs.name_);
@@ -76,6 +95,10 @@ public:
 	/* Make SharedMemObject non-copyable for now. */
 	LIBCAMERA_DISABLE_COPY(SharedMemObject)
 
+	/**
+	 * \brief Operator= for SharedMemObject.
+	 * \param[in] rhs The SharedMemObject object to take the data from.
+	 */
 	SharedMemObject<T> &operator=(SharedMemObject<T> &&rhs)
 	{
 		this->name_ = std::move(rhs.name_);
@@ -85,31 +108,61 @@ public:
 		return *this;
 	}
 
+	/**
+	 * \brief Operator-> for SharedMemObject.
+	 *
+	 * \return the object.
+	 */
 	T *operator->()
 	{
 		return obj_;
 	}
 
+	/**
+	 * \brief Operator-> for SharedMemObject.
+	 *
+	 * \return the object.
+	 */
 	const T *operator->() const
 	{
 		return obj_;
 	}
 
+	/**
+	 * \brief Operator* for SharedMemObject.
+	 *
+	 * \return the object.
+	 */
 	T &operator*()
 	{
 		return *obj_;
 	}
 
+	/**
+	 * \brief Operator* for SharedMemObject.
+	 *
+	 * \return the object.
+	 */
 	const T &operator*() const
 	{
 		return *obj_;
 	}
 
+	/**
+	 * \brief Gets the file descriptor for the underlaying storage file.
+	 *
+	 * \return the file descriptor.
+	 */
 	const SharedFD &fd() const
 	{
 		return fd_;
 	}
 
+	/**
+	 * \brief Operator bool() for SharedMemObject.
+	 *
+	 * \return true if the object is not null, false otherwise.
+	 */
 	explicit operator bool() const
 	{
 		return !!obj_;

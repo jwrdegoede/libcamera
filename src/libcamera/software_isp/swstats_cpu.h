@@ -76,6 +76,9 @@ private:
 	/* Bayer 10 bpp packed */
 	void statsBGGR10PLine0(const uint8_t *src[]);
 	void statsGBRG10PLine0(const uint8_t *src[]);
+	/* IGIG_GBGR_IGIG_GRGB 10 bpp unpacked */
+	void statsRGBIR10Line0(const uint8_t *src[]);
+	void statsRGBIR10Line2(const uint8_t *src[]);
 
 	/* Variables set by configure(), used every line */
 	statsProcessFn stats0_;

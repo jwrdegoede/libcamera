@@ -446,6 +446,7 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 		config.patternSize.height = 4;
 		config.patternSize.width = 4;
 		config.outputFormats = std::vector<PixelFormat>({ formats::RGB888 });
+		return 0;
 	}
 
 	LOG(Debayer, Info)

@@ -5,8 +5,6 @@
  * dma_heaps.h - Helper class for dma-heap allocations.
  */
 
-#include "dma_heaps.h"
-
 #include <array>
 #include <fcntl.h>
 #include <linux/dma-buf.h>
@@ -15,6 +13,8 @@
 #include <unistd.h>
 
 #include <libcamera/base/log.h>
+
+#include "libcamera/internal/dma_heaps.h"
 
 /*
  * /dev/dma-heap/linux,cma is the dma-heap allocator, which allows dmaheap-cma
@@ -30,9 +30,7 @@ static constexpr std::array<const char *, 2> heapNames = {
 
 namespace libcamera {
 
-LOG_DECLARE_CATEGORY(RPI)
-
-namespace RPi {
+LOG_DEFINE_CATEGORY(DmaHeap)
 
 DmaHeap::DmaHeap()
 {
@@ -40,7 +38,7 @@ DmaHeap::DmaHeap()
 		int ret = ::open(name, O_RDWR | O_CLOEXEC, 0);
 		if (ret < 0) {
 			ret = errno;
-			LOG(RPI, Debug) << "Failed to open " << name << ": "
+			LOG(DmaHeap, Debug) << "Failed to open " << name << ": "
 					<< strerror(ret);
 			continue;
 		}
@@ -50,7 +48,7 @@ DmaHeap::DmaHeap()
 	}
 
 	if (!dmaHeapHandle_.isValid())
-		LOG(RPI, Error) << "Could not open any dmaHeap device";
+		LOG(DmaHeap, Error) << "Could not open any dmaHeap device";
 }
 
 DmaHeap::~DmaHeap() = default;
@@ -69,7 +67,7 @@ UniqueFD DmaHeap::alloc(const char *name, std::size_t size)
 
 	ret = ::ioctl(dmaHeapHandle_.get(), DMA_HEAP_IOCTL_ALLOC, &alloc);
 	if (ret < 0) {
-		LOG(RPI, Error) << "dmaHeap allocation failure for "
+		LOG(DmaHeap, Error) << "dmaHeap allocation failure for "
 				<< name;
 		return {};
 	}
@@ -77,14 +75,12 @@ UniqueFD DmaHeap::alloc(const char *name, std::size_t size)
 	UniqueFD allocFd(alloc.fd);
 	ret = ::ioctl(allocFd.get(), DMA_BUF_SET_NAME, name);
 	if (ret < 0) {
-		LOG(RPI, Error) << "dmaHeap naming failure for "
+		LOG(DmaHeap, Error) << "dmaHeap naming failure for "
 				<< name;
 		return {};
 	}
 
 	return allocFd;
 }
-
-} /* namespace RPi */
 
 } /* namespace libcamera */

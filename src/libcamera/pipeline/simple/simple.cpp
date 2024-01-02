@@ -997,10 +997,13 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		}
 
 		if (!pipeConfig_->outputSizes.contains(cfg.size)) {
+			Size adjustedSize = pipeConfig_->captureSize;
+			if (!pipeConfig_->outputSizes.contains(adjustedSize))
+				adjustedSize = pipeConfig_->outputSizes.max;
 			LOG(SimplePipeline, Debug)
 				<< "Adjusting size from " << cfg.size
-				<< " to " << pipeConfig_->captureSize;
-			cfg.size = pipeConfig_->captureSize;
+				<< " to " << adjustedSize;
+			cfg.size = adjustedSize;
 			status = Adjusted;
 		}
 

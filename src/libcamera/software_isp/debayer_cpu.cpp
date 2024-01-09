@@ -33,9 +33,9 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 }
 
 #define DECLARE_SRC_POINTERS(pixel_t) \
-	const pixel_t *prev = (const pixel_t *)(src - inputConfig_.stride); \
-	const pixel_t *curr = (const pixel_t *)src; \
-	const pixel_t *next = (const pixel_t *)(src + inputConfig_.stride);
+	const pixel_t *prev = (const pixel_t *)src[0] + x_shift_; \
+	const pixel_t *curr = (const pixel_t *)src[1] + x_shift_; \
+	const pixel_t *next = (const pixel_t *)src[2] + x_shift_;
 
 // RGR
 // GBG
@@ -73,7 +73,7 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	*dst++ = red_[curr[x] / (div)]; \
 	x++;
 
-void DebayerCpu::debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	DECLARE_SRC_POINTERS(uint8_t)
 
@@ -83,7 +83,7 @@ void DebayerCpu::debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	DECLARE_SRC_POINTERS(uint8_t)
 
@@ -93,7 +93,7 @@ void DebayerCpu::debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	DECLARE_SRC_POINTERS(uint16_t)
 
@@ -103,7 +103,7 @@ void DebayerCpu::debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	DECLARE_SRC_POINTERS(uint16_t)
 
@@ -113,10 +113,12 @@ void DebayerCpu::debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	const int width_in_bytes = window_.width * 5 / 4;
-	DECLARE_SRC_POINTERS(uint8_t)
+	const uint8_t *prev = (const uint8_t *)src[0];
+	const uint8_t *curr = (const uint8_t *)src[1];
+	const uint8_t *next = (const uint8_t *)src[2];
 
 	/*
 	 * For the first pixel getting a pixel from the previous column uses
@@ -135,10 +137,12 @@ void DebayerCpu::debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	const int width_in_bytes = window_.width * 5 / 4;
-	DECLARE_SRC_POINTERS(uint8_t)
+	const uint8_t *prev = (const uint8_t *)src[0];
+	const uint8_t *curr = (const uint8_t *)src[1];
+	const uint8_t *next = (const uint8_t *)src[2];
 
 	for (int x = 0; x < width_in_bytes; x++) {
 		/* Even pixel */
@@ -151,10 +155,12 @@ void DebayerCpu::debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	const int width_in_bytes = window_.width * 5 / 4;
-	DECLARE_SRC_POINTERS(uint8_t)
+	const uint8_t *prev = (const uint8_t *)src[0];
+	const uint8_t *curr = (const uint8_t *)src[1];
+	const uint8_t *next = (const uint8_t *)src[2];
 
 	for (int x = 0; x < width_in_bytes; x++) {
 		/* Even pixel */
@@ -167,10 +173,12 @@ void DebayerCpu::debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[])
 {
 	const int width_in_bytes = window_.width * 5 / 4;
-	DECLARE_SRC_POINTERS(uint8_t)
+	const uint8_t *prev = (const uint8_t *)src[0];
+	const uint8_t *curr = (const uint8_t *)src[1];
+	const uint8_t *next = (const uint8_t *)src[2];
 
 	for (int x = 0; x < width_in_bytes; x++) {
 		/* Even pixel */
@@ -183,9 +191,11 @@ void DebayerCpu::debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayerIGIG10Line0(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayerIGIG10Line0(uint8_t *dst, const uint8_t *src[])
 {
-	DECLARE_SRC_POINTERS(uint16_t)
+	const uint16_t *prev = (const uint16_t *)src[1];
+	const uint16_t *curr = (const uint16_t *)src[2];
+	const uint16_t *next = (const uint16_t *)src[3];
 
 	for (int x = 0; x < (int)window_.width;) {
 		/*
@@ -238,11 +248,13 @@ void DebayerCpu::debayerIGIG10Line0(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayerGBGR10Line1(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayerGBGR10Line1(uint8_t *dst, const uint8_t *src[])
 {
-	const uint16_t *prev2 = (const uint16_t *)(src - inputConfig_.stride * 2);
-	const uint16_t *next2 = (const uint16_t *)(src + inputConfig_.stride * 2);
-	DECLARE_SRC_POINTERS(uint16_t)
+	const uint16_t *prev2 = (const uint16_t *)src[0];
+	const uint16_t *prev  = (const uint16_t *)src[1];
+	const uint16_t *curr  = (const uint16_t *)src[2];
+	const uint16_t *next  = (const uint16_t *)src[3];
+	const uint16_t *next2 = (const uint16_t *)src[4];
 
 	for (int x = 0; x < (int)window_.width;) {
 		/*
@@ -295,9 +307,11 @@ void DebayerCpu::debayerGBGR10Line1(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayerIGIG10Line2(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayerIGIG10Line2(uint8_t *dst, const uint8_t *src[])
 {
-	DECLARE_SRC_POINTERS(uint16_t)
+	const uint16_t *prev = (const uint16_t *)src[1];
+	const uint16_t *curr = (const uint16_t *)src[2];
+	const uint16_t *next = (const uint16_t *)src[3];
 
 	for (int x = 0; x < (int)window_.width;) {
 		/*
@@ -350,11 +364,13 @@ void DebayerCpu::debayerIGIG10Line2(uint8_t *dst, const uint8_t *src)
 	}
 }
 
-void DebayerCpu::debayerGRGB10Line3(uint8_t *dst, const uint8_t *src)
+void DebayerCpu::debayerGRGB10Line3(uint8_t *dst, const uint8_t *src[])
 {
-	const uint16_t *prev2 = (const uint16_t *)(src - inputConfig_.stride * 2);
-	const uint16_t *next2 = (const uint16_t *)(src + inputConfig_.stride * 2);
-	DECLARE_SRC_POINTERS(uint16_t)
+	const uint16_t *prev2 = (const uint16_t *)src[0];
+	const uint16_t *prev  = (const uint16_t *)src[1];
+	const uint16_t *curr  = (const uint16_t *)src[2];
+	const uint16_t *next  = (const uint16_t *)src[3];
+	const uint16_t *next2 = (const uint16_t *)src[4];
 
 	for (int x = 0; x < (int)window_.width;) {
 		/*
@@ -682,21 +698,45 @@ DebayerCpu::strideAndFrameSize(const PixelFormat &outputFormat, const Size &size
 	return std::make_tuple(stride, stride * size.height);
 }
 
+void DebayerCpu::initLinePointers(const uint8_t *linePointers[], const uint8_t *src)
+{
+	const int patternHeight = inputConfig_.patternSize.height;
+
+	for (int i = 0; i < patternHeight; i++)
+		linePointers[i + 1] = src +
+				      (-patternHeight / 2 + i) * (int)inputConfig_.stride;
+}
+
+void DebayerCpu::shiftLinePointers(const uint8_t *linePointers[], const uint8_t *src)
+{
+	const int patternHeight = inputConfig_.patternSize.height;
+
+	for (int i = 0; i < patternHeight; i++)
+		linePointers[i] = linePointers[i + 1];
+
+	linePointers[patternHeight] = src +
+				      (patternHeight / 2) * (int)inputConfig_.stride;
+}
+
 void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 {
 	const unsigned int y_end = window_.y + window_.height;
-	const unsigned int x_shift = x_shift_ * inputConfig_.bpp / 8;
+	const uint8_t *linePointers[3];
 
 	/* Adjust src to top left corner of the window */
 	src += window_.y * inputConfig_.stride + window_.x * inputConfig_.bpp / 8;
 
+	initLinePointers(linePointers, src);
+
 	for (unsigned int y = window_.y; y < y_end; y+= 2) {
-		stats_->processLine0(y, src, inputConfig_.stride);
-		(this->*debayer0_)(dst, src + x_shift);
+		shiftLinePointers(linePointers, src);
+		stats_->processLine0(y, linePointers[1], inputConfig_.stride);
+		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
-		(this->*debayer1_)(dst, src + x_shift);
+		shiftLinePointers(linePointers, src);
+		(this->*debayer1_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;		
 	}
@@ -705,27 +745,33 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 {
 	const unsigned int y_end = window_.y + window_.height;
-	const unsigned int x_shift = x_shift_ * inputConfig_.bpp / 8;
+	const uint8_t *linePointers[5];
 
 	/* Adjust src to top left corner of the window */
 	src += window_.y * inputConfig_.stride + window_.x * inputConfig_.bpp / 8;
 
+	initLinePointers(linePointers, src);
+
 	for (unsigned int y = window_.y; y < y_end; y+= 4) {
-		stats_->processLine0(y, src, inputConfig_.stride);
-		(this->*debayer0_)(dst, src + x_shift);
+		shiftLinePointers(linePointers, src);
+		stats_->processLine0(y, linePointers[2], inputConfig_.stride);
+		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
-		(this->*debayer1_)(dst, src + x_shift);
+		shiftLinePointers(linePointers, src);
+		(this->*debayer1_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;		
 
-		stats_->processLine2(y, src, inputConfig_.stride);
-		(this->*debayer2_)(dst, src + x_shift);
+		shiftLinePointers(linePointers, src);
+		stats_->processLine2(y, linePointers[2], inputConfig_.stride);
+		(this->*debayer2_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
-		(this->*debayer3_)(dst, src + x_shift);
+		shiftLinePointers(linePointers, src);
+		(this->*debayer3_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;		
 	}

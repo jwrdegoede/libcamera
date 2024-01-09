@@ -77,26 +77,28 @@ public:
 	 */
 	unsigned int frameSize() { return outputConfig_.frameSize; }
 private:
+	void initLinePointers(const uint8_t *linePointers[], const uint8_t *src);
+	void shiftLinePointers(const uint8_t *linePointers[], const uint8_t *src);
 	void process2(const uint8_t *src, uint8_t *dst);
 	void process4(const uint8_t *src, uint8_t *dst);
 	/* 8-bit raw bayer format */
-	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src);
-	void debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src);
+	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
 	/* unpacked 10-bit raw bayer format */
-	void debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src);
-	void debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src);
+	void debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
 	/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
-	void debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src);
-	void debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src);
-	void debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src);
-	void debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src);
+	void debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[]);
 	/* IGIG_GBGR_IGIG_GRGB  unpacked 10-bit raw bayer format */
-	void debayerIGIG10Line0(uint8_t *dst, const uint8_t *src);
-	void debayerGBGR10Line1(uint8_t *dst, const uint8_t *src);
-	void debayerIGIG10Line2(uint8_t *dst, const uint8_t *src);
-	void debayerGRGB10Line3(uint8_t *dst, const uint8_t *src);
+	void debayerIGIG10Line0(uint8_t *dst, const uint8_t *src[]);
+	void debayerGBGR10Line1(uint8_t *dst, const uint8_t *src[]);
+	void debayerIGIG10Line2(uint8_t *dst, const uint8_t *src[]);
+	void debayerGRGB10Line3(uint8_t *dst, const uint8_t *src[]);
 
-	typedef void (DebayerCpu::*debayerFn)(uint8_t *dst, const uint8_t *src);
+	typedef void (DebayerCpu::*debayerFn)(uint8_t *dst, const uint8_t *src[]);
 
 	struct DebayerInputConfig {
 		Size patternSize;

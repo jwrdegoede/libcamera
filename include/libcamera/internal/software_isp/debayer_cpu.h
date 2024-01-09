@@ -41,7 +41,7 @@ public:
 	 * \param[in] stats Pointer to the stats object to use.
 	 */
 	DebayerCpu(std::unique_ptr<SwStatsCpu> stats);
-	~DebayerCpu() {}
+	~DebayerCpu();
 
 	/*
 	 * Setup the Debayer object according to the passed in parameters.
@@ -130,9 +130,12 @@ private:
 	DebayerInputConfig inputConfig_;
 	DebayerOutputConfig outputConfig_;
 	std::unique_ptr<SwStatsCpu> stats_;
+	uint8_t *lineBuffers_[5];
+	unsigned int lineBufferIndex_;
 	unsigned int x_shift_; /* Offset of 0/1 applied to window_.x */
-	float gamma_correction_;
+	bool enableMemcpy_;
 	bool swapRedBlueGains_;
+	float gamma_correction_;
 	int measuredFrames_;
 	int64_t frameProcessTime_;
 	/* Skip 30 frames for things to stabilize then measure 30 frames */

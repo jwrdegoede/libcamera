@@ -12,6 +12,7 @@
 #include "libcamera/internal/software_isp/debayer_cpu.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include <libcamera/formats.h>
@@ -27,9 +28,23 @@ extern bool is_ov01a1s;
 DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	: stats_(std::move(stats)), gamma_correction_(1.0)
 {
+#ifdef __x86_64__
+	enableMemcpy_ = false;
+#else
+	enableMemcpy_ = true;
+#endif
 	/* Initialize gamma to 1.0 curve */
 	for (int i = 0; i < 1024; i++)
 		gamma_[i] = i / 4;
+
+	for (int i = 0; i < 5; i++)
+		lineBuffers_[i] = NULL;
+}
+
+DebayerCpu::~DebayerCpu()
+{
+	for (int i = 0; i < 5; i++)
+		free(lineBuffers_[i]);
 }
 
 #define DECLARE_SRC_POINTERS(pixel_t) \
@@ -658,6 +673,16 @@ int DebayerCpu::configure(const StreamConfiguration &inputCfg,
 	/* Don't pass x,y since process() already adjusts src before passing it */
 	stats_->setWindow(Rectangle(window_.size()));
 
+	for (unsigned int i = 0; i < (inputConfig_.patternSize.height + 1) && enableMemcpy_; i++) {
+		size_t lineLength = (window_.width + 2 * inputConfig_.patternSize.width) *
+				    inputConfig_.bpp / 8;
+
+		free(lineBuffers_[i]);
+		lineBuffers_[i] = (uint8_t *)malloc(lineLength);
+		if (!lineBuffers_[i])
+			return -ENOMEM;
+	}
+
 	measuredFrames_ = 0;
 	frameProcessTime_ = 0;
 
@@ -705,6 +730,22 @@ void DebayerCpu::initLinePointers(const uint8_t *linePointers[], const uint8_t *
 	for (int i = 0; i < patternHeight; i++)
 		linePointers[i + 1] = src +
 				      (-patternHeight / 2 + i) * (int)inputConfig_.stride;
+
+	if (!enableMemcpy_)
+		return;
+
+	for (int i = 0; i < patternHeight; i++) {
+		/* pad with patternSize.Width on both left and right side */
+		size_t lineLength = (window_.width + 2 * inputConfig_.patternSize.width) *
+				    inputConfig_.bpp / 8;
+		int padding = inputConfig_.patternSize.width * inputConfig_.bpp / 8;
+
+		memcpy(lineBuffers_[i], linePointers[i + 1] - padding, lineLength);
+		linePointers[i + 1] = lineBuffers_[i] + padding;
+	}
+
+	/* Point lineBufferIndex_ to first unused lineBuffer */
+	lineBufferIndex_ = patternHeight;
 }
 
 void DebayerCpu::shiftLinePointers(const uint8_t *linePointers[], const uint8_t *src)
@@ -716,6 +757,17 @@ void DebayerCpu::shiftLinePointers(const uint8_t *linePointers[], const uint8_t 
 
 	linePointers[patternHeight] = src +
 				      (patternHeight / 2) * (int)inputConfig_.stride;
+
+	if (!enableMemcpy_)
+		return;
+
+	size_t lineLength = (window_.width + 2 * inputConfig_.patternSize.width) *
+			    inputConfig_.bpp / 8;
+	int padding = 0; // inputConfig_.patternSize.width * inputConfig_.bpp / 8;
+	memcpy(lineBuffers_[lineBufferIndex_], linePointers[patternHeight] - padding, lineLength);
+	linePointers[patternHeight] = lineBuffers_[lineBufferIndex_] + padding;
+
+	lineBufferIndex_ = (lineBufferIndex_ + 1) % (patternHeight + 1);
 }
 
 void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)

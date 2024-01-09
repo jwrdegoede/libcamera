@@ -12,6 +12,7 @@
 #include "libcamera/internal/software_isp/debayer_cpu.h"
 
 #include <math.h>
+#include <time.h>
 
 #include <libcamera/formats.h>
 
@@ -641,6 +642,9 @@ int DebayerCpu::configure(const StreamConfiguration &inputCfg,
 	/* Don't pass x,y since process() already adjusts src before passing it */
 	stats_->setWindow(Rectangle(window_.size()));
 
+	measuredFrames_ = 0;
+	frameProcessTime_ = 0;
+
 	return 0;
 }
 
@@ -727,8 +731,21 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 	}
 }
 
+static inline int64_t timeDiff(timespec &after, timespec &before)
+{
+	return (after.tv_sec - before.tv_sec) * 1000000000LL +
+	       (int64_t)after.tv_nsec - (int64_t)before.tv_nsec;
+}
+
 void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
 {
+	timespec frameStartTime;
+
+	if (measuredFrames_ < DebayerCpu::framesToMeasure) {
+		frameStartTime = {};
+		clock_gettime(CLOCK_MONOTONIC_RAW, &frameStartTime);
+	}
+
 	/* Apply DebayerParams */
 	if (params.gamma != gamma_correction_) {
 		for (int i = 0; i < 1024; i++)
@@ -776,6 +793,23 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		process4(in.planes()[0].data(), out.planes()[0].data());
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
+
+	/* Measure before emitting signals */
+	if (measuredFrames_ < DebayerCpu::framesToMeasure &&
+	    ++measuredFrames_ > DebayerCpu::framesToSkip) {
+		timespec frameEndTime = {};
+		clock_gettime(CLOCK_MONOTONIC_RAW, &frameEndTime);
+		frameProcessTime_ += timeDiff(frameEndTime, frameStartTime);
+		if (measuredFrames_ == DebayerCpu::framesToMeasure) {
+			const int measuredFrames = DebayerCpu::framesToMeasure -
+						   DebayerCpu::framesToSkip;
+			LOG(Debayer, Info)
+				<< "Processed " << measuredFrames
+				<< " frames in " << frameProcessTime_ / 1000 << "us, "
+				<< frameProcessTime_ / (1000 * measuredFrames)
+				<< " us/frame";
+		}
+	}
 
 	stats_->finishFrame();
 	outputBufferReady.emit(output);

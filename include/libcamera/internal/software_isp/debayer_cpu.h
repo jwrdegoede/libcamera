@@ -131,6 +131,11 @@ private:
 	unsigned int x_shift_; /* Offset of 0/1 applied to window_.x */
 	float gamma_correction_;
 	bool swapRedBlueGains_;
+	int measuredFrames_;
+	int64_t frameProcessTime_;
+	/* Skip 30 frames for things to stabilize then measure 30 frames */
+	static const int framesToSkip = 30;
+	static const int framesToMeasure = 60;
 };
 
 } /* namespace libcamera */

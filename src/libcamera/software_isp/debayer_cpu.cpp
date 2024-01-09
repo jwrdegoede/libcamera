@@ -686,8 +686,6 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 	/* Adjust src to top left corner of the window */
 	src += window_.y * inputConfig_.stride + window_.x * inputConfig_.bpp / 8;
 
-	stats_->startFrame();
-
 	for (unsigned int y = window_.y; y < y_end; y+= 2) {
 		stats_->processLine0(y, src, inputConfig_.stride);
 		(this->*debayer0_)(dst, src + x_shift);
@@ -698,8 +696,6 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;		
 	}
-
-	stats_->finishFrame();
 }
 
 void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
@@ -709,8 +705,6 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 
 	/* Adjust src to top left corner of the window */
 	src += window_.y * inputConfig_.stride + window_.x * inputConfig_.bpp / 8;
-
-	stats_->startFrame();
 
 	for (unsigned int y = window_.y; y < y_end; y+= 4) {
 		stats_->processLine0(y, src, inputConfig_.stride);
@@ -731,8 +725,6 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;		
 	}
-
-	stats_->finishFrame();
 }
 
 void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
@@ -776,6 +768,8 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		return;
 	}
 
+	stats_->startFrame();
+
 	if (inputConfig_.patternSize.height == 2)
 		process2(in.planes()[0].data(), out.planes()[0].data());
 	else
@@ -783,6 +777,7 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
+	stats_->finishFrame();
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

@@ -208,17 +208,6 @@ public:
 	}
 
 	/**
-	 * \brief Process a whole frame at once.
-	 * \param[in] src The input data.
-	 * \param[in] stride The stride.
-	 *
-	 * This function replaces manually calling startFrame()
-	 * + processLine0() + finishFrame().
-	 * This may only be called after a successful setWindow() call.
-	 */
-	void processFrame(const uint8_t *src, unsigned int stride);
-
-	/**
 	 * \brief Signals that the statistics are ready.
 	 *
 	 * The int parameter isn't actually used.

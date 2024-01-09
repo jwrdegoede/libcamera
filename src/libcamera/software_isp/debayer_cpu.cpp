@@ -730,7 +730,7 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 
 	for (unsigned int y = window_.y; y < y_end; y+= 2) {
 		shiftLinePointers(linePointers, src);
-		stats_->processLine0(y, linePointers[1], inputConfig_.stride);
+		stats_->processLine0(y, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -754,7 +754,7 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 
 	for (unsigned int y = window_.y; y < y_end; y+= 4) {
 		shiftLinePointers(linePointers, src);
-		stats_->processLine0(y, linePointers[2], inputConfig_.stride);
+		stats_->processLine0(y, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -765,7 +765,7 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 		dst += outputConfig_.stride;		
 
 		shiftLinePointers(linePointers, src);
-		stats_->processLine2(y, linePointers[2], inputConfig_.stride);
+		stats_->processLine2(y, linePointers);
 		(this->*debayer2_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;

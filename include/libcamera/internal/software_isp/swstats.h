@@ -63,9 +63,8 @@ protected:
 	/**
 	 * \brief Called when there is data to get statistics from.
 	 * \param[in] src The input data
-	 * \param[in] stride The stride in bytes
 	 */
-	typedef void (SwStats::*statsProcessFn)(const uint8_t *src, unsigned int stride);
+	typedef void (SwStats::*statsProcessFn)(const uint8_t *src[]);
 	/**
 	 * \brief Called when the statistics gathering is done or when a new frame starts.
 	 */
@@ -164,37 +163,35 @@ public:
 	 * \brief Process line 0.
 	 * \param[in] y The y coordinate.
 	 * \param[in] src The input data.
-	 * \param[in] stride The stride.
 	 *
 	 * This function processes line 0 for input formats with patternSize height == 1.
 	 * It'll process line 0 and 1 for input formats with patternSize height >= 2.
 	 * This function may only be called after a successful setWindow() call.
 	 */
-	void processLine0(unsigned int y, const uint8_t *src, unsigned int stride)
+	void processLine0(unsigned int y, const uint8_t *src[])
 	{
 		if ((y & y_skip_mask_) || y < (unsigned int)window_.y ||
 		    y >= (window_.y + window_.height))
 			return;
 
-		(this->*stats0_)(src + window_.x * bpp_ / 8, stride);
+		(this->*stats0_)(src);
 	}
 
 	/**
 	 * \brief Process line 2 and 3.
 	 * \param[in] y The y coordinate.
 	 * \param[in] src The input data.
-	 * \param[in] stride The stride.
 	 *
 	 * This function processes line 2 and 3 for input formats with patternSize height == 4.
 	 * This function may only be called after a successful setWindow() call.
 	 */
-	void processLine2(unsigned int y, const uint8_t *src, unsigned int stride)
+	void processLine2(unsigned int y, const uint8_t *src[])
 	{
 		if ((y & y_skip_mask_) || y < (unsigned int)window_.y ||
 		    y >= (window_.y + window_.height))
 			return;
 
-		(this->*stats2_)(src + window_.x * bpp_ / 8, stride);
+		(this->*stats2_)(src);
 	}
 
 	/**

@@ -61,10 +61,10 @@ static const unsigned int BLUE_Y_MUL = 29;		/* 0.11 * 256 */
 	stats_.sumG_ += sumG;				\
 	stats_.sumB_ += sumB;
 
-void SwStatsCpu::statsBGGR8Line0(const uint8_t *src, unsigned int stride)
+void SwStatsCpu::statsBGGR8Line0(const uint8_t *src[])
 {
-	const uint8_t *src0 = src;
-	const uint8_t *src1 = src + stride;
+	const uint8_t *src0 = src[1] + window_.x;
+	const uint8_t *src1 = src[2] + window_.x;
 
 	SWISP_LINARO_START_LINE_STATS(uint8_t)
 
@@ -86,10 +86,10 @@ void SwStatsCpu::statsBGGR8Line0(const uint8_t *src, unsigned int stride)
 	SWISP_LINARO_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsBGGR10Line0(const uint8_t *src, unsigned int stride)
+void SwStatsCpu::statsBGGR10Line0(const uint8_t *src[])
 {
-	const uint16_t *src0 = (const uint16_t *)src;
-	const uint16_t *src1 = (const uint16_t *)(src + stride);
+	const uint16_t *src0 = (const uint16_t *)src[1] + window_.x;
+	const uint16_t *src1 = (const uint16_t *)src[2] + window_.x;
 
 	SWISP_LINARO_START_LINE_STATS(uint16_t)
 
@@ -141,10 +141,10 @@ statsBayer10P(const int width, const uint8_t *src0, const uint8_t *src1, bool bg
 	SWISP_LINARO_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src, unsigned int stride)
+void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src[])
 {
-	const uint8_t *src0 = src;
-	const uint8_t *src1 = src + stride;
+	const uint8_t *src0 = src[1] + window_.x * 5 / 4;
+	const uint8_t *src1 = src[2] + window_.x * 5 / 4;
 
 	if (swap_lines_)
 		std::swap(src0, src1);
@@ -152,10 +152,10 @@ void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src, unsigned int stride)
 	statsBayer10P(window_.width, src0, src1, true, stats_);
 }
 
-void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src, unsigned int stride)
+void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
 {
-	const uint8_t *src0 = src;
-	const uint8_t *src1 = src + stride;
+	const uint8_t *src0 = src[1] + window_.x * 5 / 4;
+	const uint8_t *src1 = src[2] + window_.x * 5 / 4;
 
 	if (swap_lines_)
 		std::swap(src0, src1);
@@ -163,10 +163,10 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src, unsigned int stride)
 	statsBayer10P(window_.width, src0, src1, false, stats_);
 }
 
-void SwStatsCpu::statsRGBIR10Line0(const uint8_t *src0, unsigned int stride)
+void SwStatsCpu::statsRGBIR10Line0(const uint8_t *src[])
 {
-	const uint16_t *src0_16 = (const uint16_t *)src0;
-	const uint16_t *src1_16 = (const uint16_t *)(src0 + stride);
+	const uint16_t *src0_16 = (const uint16_t *)src[2] + window_.x;
+	const uint16_t *src1_16 = (const uint16_t *)src[3] + window_.x;
 	uint16_t g3, g4;
 
 	SWISP_LINARO_START_LINE_STATS(uint16_t)
@@ -194,10 +194,10 @@ void SwStatsCpu::statsRGBIR10Line0(const uint8_t *src0, unsigned int stride)
 	SWISP_LINARO_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsRGBIR10Line2(const uint8_t *src0, unsigned int stride)
+void SwStatsCpu::statsRGBIR10Line2(const uint8_t *src[])
 {
-	const uint16_t *src0_16 = (const uint16_t *)src0;
-	const uint16_t *src1_16 = (const uint16_t *)(src0 + stride);
+	const uint16_t *src0_16 = (const uint16_t *)src[2] + window_.x;
+	const uint16_t *src1_16 = (const uint16_t *)src[3] + window_.x;
 	uint16_t g3, g4;
 
 	SWISP_LINARO_START_LINE_STATS(uint16_t)

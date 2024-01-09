@@ -34,15 +34,15 @@ public:
 private:
 	int setupStandardBayerOrder(BayerFormat::Order order);
 	/* Bayer 8 bpp unpacked */
-	void statsBGGR8Line0(const uint8_t *src, unsigned int stride);
+	void statsBGGR8Line0(const uint8_t *src[]);
 	/* Bayer 10 bpp unpacked */
-	void statsBGGR10Line0(const uint8_t *src, unsigned int stride);
+	void statsBGGR10Line0(const uint8_t *src[]);
 	/* Bayer 10 bpp packed */
-	void statsBGGR10PLine0(const uint8_t *src, unsigned int stride);
-	void statsGBRG10PLine0(const uint8_t *src, unsigned int stride);
+	void statsBGGR10PLine0(const uint8_t *src[]);
+	void statsGBRG10PLine0(const uint8_t *src[]);
 	/* IGIG_GBGR_IGIG_GRGB 10 bpp unpacked */
-	void statsRGBIR10Line0(const uint8_t *src, unsigned int stride);
-	void statsRGBIR10Line2(const uint8_t *src, unsigned int stride);
+	void statsRGBIR10Line0(const uint8_t *src[]);
+	void statsRGBIR10Line2(const uint8_t *src[]);
 	void resetStats(void);
 	void finishStats(void);
 

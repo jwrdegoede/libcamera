@@ -19,8 +19,10 @@
 
 /**
  * \file dma_heaps.cpp
- * \brief CMA dma-heap allocator
+ * \brief dma-heap allocator
  */
+
+namespace libcamera {
 
 /*
  * /dev/dma_heap/linux,cma is the dma-heap allocator, which allows dmaheap-cma
@@ -29,42 +31,77 @@
  * Annoyingly, should the cma heap size be specified on the kernel command line
  * instead of DT, the heap gets named "reserved" instead.
  */
-static constexpr std::array<const char *, 2> heapNames = {
-	"/dev/dma_heap/linux,cma",
-	"/dev/dma_heap/reserved"
+
+/**
+ * \struct DmaHeapInfo
+ * \brief Tells what type of dma-heap the dma-heap represented by the device node name is
+ * \var DmaHeapInfo::flag
+ * \brief The type of the dma-heap
+ * \var DmaHeapInfo::name
+ * \brief The dma-heap's device node name
+ */
+struct DmaHeapInfo {
+	DmaHeap::DmaHeapFlag flag;
+	const char *name;
 };
 
-namespace libcamera {
+static constexpr std::array<DmaHeapInfo, 3> heapInfos = {
+	{ /* CMA heap names first */
+	  { DmaHeap::DmaHeapFlag::Cma, "/dev/dma_heap/linux,cma" },
+	  { DmaHeap::DmaHeapFlag::Cma, "/dev/dma_heap/reserved" },
+	  { DmaHeap::DmaHeapFlag::System, "/dev/dma_heap/system" } }
+};
 
 LOG_DEFINE_CATEGORY(DmaHeap)
 
 /**
  * \class DmaHeap
- * \brief Helper class for CMA dma-heap allocations
+ * \brief Helper class for dma-heap allocations
  */
 
 /**
- * \brief Construct a DmaHeap that owns a CMA dma-heap file descriptor
+ * \enum DmaHeap::DmaHeapFlag
+ * \brief Type of the dma-heap
+ * \var DmaHeap::Cma
+ * \brief Allocate from a CMA dma-heap
+ * \var DmaHeap::System
+ * \brief Allocate from the system dma-heap
+ */
+
+/**
+ * \typedef DmaHeap::DmaHeapFlags
+ * \brief A bitwise combination of DmaHeap::DmaHeapFlag values
+ */
+
+/**
+ * \brief Construct a DmaHeap that owns a CMA or system dma-heap file descriptor
+ * \param [in] flags The type(s) of the dma-heap(s) to allocate from
  *
- * Goes through the internal list of possible names of the CMA dma-heap devices
- * until a CMA dma-heap device is successfully opened. If it fails to open any
- * dma-heap device, an invalid DmaHeap object is constructed. A valid DmaHeap
- * object owns a wrapped dma-heap file descriptor.
+ * By default \a flags are set to DmaHeap::DmaHeapFlag::Cma. The constructor goes
+ * through the internal list of possible names of the CMA and system dma-heap devices
+ * until the dma-heap device of the requested type is successfully opened. If more
+ * than one dma-heap type is specified in flags the CMA heap is tried first. If it
+ * fails to open any dma-heap device an invalid DmaHeap object is constructed.
+ * A valid DmaHeap object owns a wrapped dma-heap file descriptor.
  *
  * Please check the new DmaHeap object with \ref DmaHeap::isValid before using it.
  */
-DmaHeap::DmaHeap()
+DmaHeap::DmaHeap(DmaHeapFlags flags)
 {
-	for (const char *name : heapNames) {
-		int ret = ::open(name, O_RDWR | O_CLOEXEC, 0);
+	for (const auto &info : heapInfos) {
+		if (!(flags & info.flag))
+			continue;
+
+		int ret = ::open(info.name, O_RDWR | O_CLOEXEC, 0);
 		if (ret < 0) {
 			ret = errno;
 			LOG(DmaHeap, Debug)
-				<< "Failed to open " << name << ": "
+				<< "Failed to open " << info.name << ": "
 				<< strerror(ret);
 			continue;
 		}
 
+		LOG(DmaHeap, Debug) << "Using " << info.name;
 		dmaHeapHandle_ = UniqueFD(ret);
 		break;
 	}

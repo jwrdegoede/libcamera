@@ -16,6 +16,8 @@
 
 #include "libcamera/internal/dma_heaps.h"
 
+namespace libcamera {
+
 /*
  * /dev/dma-heap/linux,cma is the dma-heap allocator, which allows dmaheap-cma
  * to only have to worry about importing.
@@ -23,28 +25,33 @@
  * Annoyingly, should the cma heap size be specified on the kernel command line
  * instead of DT, the heap gets named "reserved" instead.
  */
-static constexpr std::array<const char *, 2> heapNames = {
-	"/dev/dma_heap/linux,cma",
-	"/dev/dma_heap/reserved"
+static constexpr std::array<std::pair<DmaHeap::DmaHeapFlag, const char *>, 3> heapNames = {
+	/* CMA heap names first */
+	std::make_pair(DmaHeap::DmaHeapFlag::Cma, "/dev/dma_heap/linux,cma"),
+	std::make_pair(DmaHeap::DmaHeapFlag::Cma, "/dev/dma_heap/reserved"),
+	std::make_pair(DmaHeap::DmaHeapFlag::System, "/dev/dma_heap/system")
 };
-
-namespace libcamera {
 
 LOG_DEFINE_CATEGORY(DmaHeap)
 
-DmaHeap::DmaHeap()
+DmaHeap::DmaHeap(DmaHeapFlags flags)
 {
-	for (const char *name : heapNames) {
-		int ret = ::open(name, O_RDWR | O_CLOEXEC, 0);
-		if (ret < 0) {
-			ret = errno;
-			LOG(DmaHeap, Debug) << "Failed to open " << name << ": "
-					<< strerror(ret);
-			continue;
-		}
+	int ret;
 
-		dmaHeapHandle_ = UniqueFD(ret);
-		break;
+	for (const auto &name : heapNames) {
+		if (flags & name.first) {
+			ret = ::open(name.second, O_RDWR | O_CLOEXEC, 0);
+			if (ret < 0) {
+				ret = errno;
+				LOG(DmaHeap, Debug) << "Failed to open " << name.second << ": "
+						    << strerror(ret);
+				continue;
+			}
+
+			LOG(DmaHeap, Debug) << "Using " << name.second;
+			dmaHeapHandle_ = UniqueFD(ret);
+			break;
+		}
 	}
 
 	if (!dmaHeapHandle_.isValid())

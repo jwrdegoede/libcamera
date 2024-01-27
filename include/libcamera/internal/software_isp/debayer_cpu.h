@@ -62,6 +62,7 @@ public:
 		strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 
 	void process(FrameBuffer *input, FrameBuffer *output, DebayerParams params);
+	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
 
 	/**
 	 * \brief Get the file descriptor for the statistics.

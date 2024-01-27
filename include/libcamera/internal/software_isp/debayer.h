@@ -94,31 +94,7 @@ public:
 	 *
 	 * \return The valid size ranges or an empty range if there are none.
 	 */
-	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize)
-	{
-		Size pattern_size = patternSize(inputFormat);
-
-		if (pattern_size.isNull())
-			return {};
-
-		/*
-		 * For debayer interpolation a border of pattern-height x pattern-width
-		 * is kept around the entire image. Combined with a minimum-size of
-		 * pattern-height x pattern-width this means the input-size needs to be
-		 * at least (3 * pattern-height) x (3 * pattern-width).
-		 */
-		if (inputSize.width < (3 * pattern_size.width) ||
-		    inputSize.height < (3 * pattern_size.height)) {
-			LOG(Debayer, Warning)
-				<< "Input format size too small: " << inputSize.toString();
-			return {};
-		}
-
-		return SizeRange(Size(pattern_size.width, pattern_size.height),
-				 Size((inputSize.width - 2 * pattern_size.width) & ~(pattern_size.width - 1),
-				      (inputSize.height - 2 * pattern_size.height) & ~(pattern_size.height - 1)),
-				 pattern_size.width, pattern_size.height);
-	}
+	virtual SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) = 0;
 
 	/**
 	 * \brief Signals when the input buffer is ready.

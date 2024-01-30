@@ -754,13 +754,9 @@ DebayerCpu::strideAndFrameSize(const PixelFormat &outputFormat, const Size &size
 	return std::make_tuple(stride, stride * size.height);
 }
 
-void DebayerCpu::initLinePointers(const uint8_t *linePointers[], const uint8_t *src)
+void DebayerCpu::setupInputMemcpy(const uint8_t *linePointers[])
 {
 	const int patternHeight = inputConfig_.patternSize.height;
-
-	for (int i = 0; i < patternHeight; i++)
-		linePointers[i + 1] = src +
-				      (-patternHeight / 2 + i) * (int)inputConfig_.stride;
 
 	if (!enableInputMemcpy_)
 		return;
@@ -788,10 +784,14 @@ void DebayerCpu::shiftLinePointers(const uint8_t *linePointers[], const uint8_t 
 
 	linePointers[patternHeight] = src +
 				      (patternHeight / 2) * (int)inputConfig_.stride;
+}
 
+void DebayerCpu::memcpyNextLine(const uint8_t *linePointers[])
+{
 	if (!enableInputMemcpy_)
 		return;
 
+	const int patternHeight = inputConfig_.patternSize.height;
 	size_t lineLength = (window_.width + 2 * inputConfig_.patternSize.width) *
 			    inputConfig_.bpp / 8;
 	int padding = inputConfig_.patternSize.width * inputConfig_.bpp / 8;
@@ -803,22 +803,53 @@ void DebayerCpu::shiftLinePointers(const uint8_t *linePointers[], const uint8_t 
 
 void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 {
-	const unsigned int y_end = window_.y + window_.height;
+	unsigned int y_end = window_.y + window_.height;
+	/* Holds [0] previous- [1] current- [2] next-line */
 	const uint8_t *linePointers[3];
 
 	/* Adjust src to top left corner of the window */
 	src += window_.y * inputConfig_.stride + window_.x * inputConfig_.bpp / 8;
 
-	initLinePointers(linePointers, src);
+	/* [x] becomes [x - 1] after initial shiftLinePointers() call */
+	if (window_.y) {
+		linePointers[1] = src - inputConfig_.stride; /* previous-line */
+		linePointers[2] = src;
+	} else {
+		/* window_.y == 0, use the next line as prev line */
+		linePointers[1] = src + inputConfig_.stride;
+		linePointers[2] = src;
+		/* Last 2 lines also need special handling */
+		y_end -= 2;
+	}
+
+	setupInputMemcpy(linePointers);
 
 	for (unsigned int y = window_.y; y < y_end; y += 2) {
 		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
 		stats_->processLine0(y, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
 		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
+		(this->*debayer1_)(dst, linePointers);
+		src += inputConfig_.stride;
+		dst += outputConfig_.stride;
+	}
+
+	if (window_.y == 0) {
+		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
+		stats_->processLine0(y_end, linePointers);
+		(this->*debayer0_)(dst, linePointers);
+		src += inputConfig_.stride;
+		dst += outputConfig_.stride;
+
+		shiftLinePointers(linePointers, src);
+		/* next line may point outside of src, use prev. */
+		linePointers[2] = linePointers[0];
 		(this->*debayer1_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -828,32 +859,46 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 {
 	const unsigned int y_end = window_.y + window_.height;
+	/*
+	 * This holds pointers to [0] 2-lines up [1] 1-line up [2] current-line
+	 * [3] 1-line down [4] 2-lines down.
+	 */
 	const uint8_t *linePointers[5];
 
 	/* Adjust src to top left corner of the window */
 	src += window_.y * inputConfig_.stride + window_.x * inputConfig_.bpp / 8;
 
-	initLinePointers(linePointers, src);
+	/* [x] becomes [x - 1] after initial shiftLinePointers() call */
+	linePointers[1] = src - 2 * inputConfig_.stride;
+	linePointers[2] = src - inputConfig_.stride;
+	linePointers[3] = src;
+	linePointers[4] = src + inputConfig_.stride;
+
+	setupInputMemcpy(linePointers);
 
 	for (unsigned int y = window_.y; y < y_end; y += 4) {
 		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
 		stats_->processLine0(y, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
 		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
 		(this->*debayer1_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
 		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
 		stats_->processLine2(y, linePointers);
 		(this->*debayer2_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
 
 		shiftLinePointers(linePointers, src);
+		memcpyNextLine(linePointers);
 		(this->*debayer3_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -948,18 +993,21 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 SizeRange DebayerCpu::sizes(PixelFormat inputFormat, const Size &inputSize)
 {
 	Size pattern_size = patternSize(inputFormat);
+	unsigned int border_height = pattern_size.height;
 
 	if (pattern_size.isNull())
 		return {};
 
+	/* No need for top/bottom border with a pattern height of 2 */
+	if (pattern_size.height == 2)
+		border_height = 0;
+
 	/*
-	 * For debayer interpolation a border of pattern-height x pattern-width
-	 * is kept around the entire image. Combined with a minimum-size of
-	 * pattern-height x pattern-width this means the input-size needs to be
-	 * at least (3 * pattern-height) x (3 * pattern-width).
+	 * For debayer interpolation a border is kept around the entire image
+	 * and the minimum output size is pattern-height x pattern-width.
 	 */
 	if (inputSize.width < (3 * pattern_size.width) ||
-	    inputSize.height < (3 * pattern_size.height)) {
+	    inputSize.height < (2 * border_height + pattern_size.height)) {
 		LOG(Debayer, Warning)
 			<< "Input format size too small: " << inputSize.toString();
 		return {};
@@ -967,7 +1015,7 @@ SizeRange DebayerCpu::sizes(PixelFormat inputFormat, const Size &inputSize)
 
 	return SizeRange(Size(pattern_size.width, pattern_size.height),
 			 Size((inputSize.width - 2 * pattern_size.width) & ~(pattern_size.width - 1),
-			      (inputSize.height - 2 * pattern_size.height) & ~(pattern_size.height - 1)),
+			      (inputSize.height - 2 * border_height) & ~(pattern_size.height - 1)),
 			 pattern_size.width, pattern_size.height);
 }
 

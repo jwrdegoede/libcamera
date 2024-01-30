@@ -79,8 +79,9 @@ public:
 	unsigned int frameSize() { return outputConfig_.frameSize; }
 
 private:
-	void initLinePointers(const uint8_t *linePointers[], const uint8_t *src);
+	void setupInputMemcpy(const uint8_t *linePointers[]);
 	void shiftLinePointers(const uint8_t *linePointers[], const uint8_t *src);
+	void memcpyNextLine(const uint8_t *linePointers[]);
 	void process2(const uint8_t *src, uint8_t *dst);
 	void process4(const uint8_t *src, uint8_t *dst);
 	/* 8-bit raw bayer format */

@@ -198,6 +198,7 @@ static const SimplePipelineInfo supportedDevices[] = {
 	{ "qcom-camss", {} },
 	{ "sun6i-csi", {} },
 	{ "intel-ipu6", {} },
+	{ "atomisp-isp2", {} },
 };
 
 } /* namespace */
@@ -404,6 +405,8 @@ SimpleCameraData::SimpleCameraData(SimplePipelineHandler *pipe,
 		std::tie(entity, sinkPad) = queue.front();
 		queue.pop();
 
+		LOG(SimplePipeline, Debug) << "First loop checking entity " << entity->name();
+
 		/* Found the capture device. */
 		if (entity->function() == MEDIA_ENT_F_IO_V4L) {
 			LOG(SimplePipeline, Debug)
@@ -426,8 +429,10 @@ SimpleCameraData::SimpleCameraData(SimplePipelineHandler *pipe,
 
 		if (sinkPad) {
 			pads = routedSourcePads(sinkPad);
-			if (!pads.empty())
+			if (!pads.empty()) {
 				supportsRouting = true;
+				LOG(SimplePipeline, Debug) << entity->name() << " Supports routing";
+			}
 		}
 
 		if (pads.empty()) {
@@ -436,12 +441,14 @@ SimpleCameraData::SimpleCameraData(SimplePipelineHandler *pipe,
 					continue;
 				pads.push_back(pad);
 			}
+			LOG(SimplePipeline, Debug) << entity->name() << " source-pad-count " << pads.size();
 		}
 
 		for (const MediaPad *pad : pads) {
 			for (MediaLink *link : pad->links()) {
 				MediaEntity *next = link->sink()->entity();
 				if (visited.find(next) == visited.end()) {
+					LOG(SimplePipeline, Debug) << next->name() << " added to queue";
 					queue.push({ next, link->sink() });
 
 					Entity e{ entity, supportsRouting, sinkPad, pad, link };

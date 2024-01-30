@@ -108,6 +108,8 @@ protected:
 	statsVoidFn finishFrame_;
 	/**
 	 * \brief The size of the bayer pattern.
+	 *
+	 * Valid sizes are: 2x2, 4x2 or 4x4.
 	 */
 	Size patternSize_;
 	/**

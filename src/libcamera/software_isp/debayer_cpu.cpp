@@ -1049,9 +1049,16 @@ SizeRange DebayerCpu::sizes(PixelFormat inputFormat, const Size &inputSize)
 		return {};
 	}
 
-	return SizeRange(Size(patternSize.width, patternSize.height),
-			 Size((inputSize.width - 2 * patternSize.width) & ~(patternSize.width - 1),
-			      (inputSize.height - 2 * borderHeight) & ~(patternSize.height - 1)),
+	/*
+	 * pipewire + firefox default to 640x480 if we export the entire
+	 * supported cropping range.
+	 * Hardcode 720p as minsize for now. Minsize should be
+	 * Size(patternSize.width, patternSize.height)
+	 */
+	unsigned int w = (inputSize.width - 2 * patternSize.width) & ~(patternSize.width - 1);
+	unsigned int h = (inputSize.height - 2 * borderHeight) & ~(patternSize.height - 1);
+	return SizeRange(Size(std::min(w, 1280u), std::min(h, 720u)),
+			 Size(w, h),
 			 patternSize.width, patternSize.height);
 }
 

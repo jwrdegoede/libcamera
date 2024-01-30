@@ -52,6 +52,8 @@ public:
 	 * \brief Get the width and height at which the bayer pattern repeats.
 	 * \param[in] inputFormat The input format.
 	 *
+	 * Valid sizes are: 2x2, 4x2 or 4x4.
+	 *
 	 * \return pattern size or an empty size for unsupported inputFormats.
 	 */
 	virtual Size patternSize(PixelFormat inputFormat) = 0;

@@ -6,12 +6,9 @@
  */
 #pragma once
 
-#include <fcntl.h>
 #include <stddef.h>
 #include <string>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <utility>
 
 #include <libcamera/base/class.h>
@@ -19,58 +16,92 @@
 
 namespace libcamera {
 
+class SharedMem
+{
+public:
+	SharedMem()
+		: mem_(nullptr)
+	{
+	}
+
+	SharedMem(const std::string &name, std::size_t size);
+
+	SharedMem(SharedMem &&rhs)
+	{
+		this->name_ = std::move(rhs.name_);
+		this->fd_ = std::move(rhs.fd_);
+		this->mem_ = rhs.mem_;
+		rhs.mem_ = nullptr;
+	}
+
+	virtual ~SharedMem()
+	{
+		if (mem_)
+			munmap(mem_, size_);
+	}
+
+	/* Make SharedMem non-copyable for now. */
+	LIBCAMERA_DISABLE_COPY(SharedMem)
+
+	SharedMem &operator=(SharedMem &&rhs)
+	{
+		this->name_ = std::move(rhs.name_);
+		this->fd_ = std::move(rhs.fd_);
+		this->mem_ = rhs.mem_;
+		rhs.mem_ = nullptr;
+		return *this;
+	}
+
+	const SharedFD &fd() const
+	{
+		return fd_;
+	}
+
+	void *mem() const
+	{
+		return mem_;
+	}
+
+private:
+	std::string name_;
+	SharedFD fd_;
+	size_t size_;
+protected:
+	void *mem_;
+};
+
 template<class T>
-class SharedMemObject
+class SharedMemObject : public SharedMem
 {
 public:
 	static constexpr std::size_t SIZE = sizeof(T);
 
 	SharedMemObject()
-		: obj_(nullptr)
+		: SharedMem(), obj_(nullptr)
 	{
 	}
 
 	template<class... Args>
 	SharedMemObject(const std::string &name, Args &&...args)
-		: name_(name), obj_(nullptr)
+		: SharedMem(name, SIZE), obj_(nullptr)
 	{
-		void *mem;
-		int ret;
-
-		ret = memfd_create(name_.c_str(), MFD_CLOEXEC);
-		if (ret < 0)
+		if (mem_ == nullptr)
 			return;
 
-		fd_ = SharedFD(std::move(ret));
-		if (!fd_.isValid())
-			return;
-
-		ret = ftruncate(fd_.get(), SIZE);
-		if (ret < 0)
-			return;
-
-		mem = mmap(nullptr, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			   fd_.get(), 0);
-		if (mem == MAP_FAILED)
-			return;
-
-		obj_ = new (mem) T(std::forward<Args>(args)...);
+		obj_ = new (mem_) T(std::forward<Args>(args)...);
 	}
 
 	SharedMemObject(SharedMemObject<T> &&rhs)
+		: SharedMem(std::move(rhs))
 	{
-		this->name_ = std::move(rhs.name_);
-		this->fd_ = std::move(rhs.fd_);
 		this->obj_ = rhs.obj_;
 		rhs.obj_ = nullptr;
 	}
 
 	~SharedMemObject()
 	{
-		if (obj_) {
+		if (obj_)
 			obj_->~T();
-			munmap(obj_, SIZE);
-		}
 	}
 
 	/* Make SharedMemObject non-copyable for now. */
@@ -78,8 +109,7 @@ public:
 
 	SharedMemObject<T> &operator=(SharedMemObject<T> &&rhs)
 	{
-		this->name_ = std::move(rhs.name_);
-		this->fd_ = std::move(rhs.fd_);
+		SharedMem::operator=(std::move(rhs));
 		this->obj_ = rhs.obj_;
 		rhs.obj_ = nullptr;
 		return *this;
@@ -105,19 +135,12 @@ public:
 		return *obj_;
 	}
 
-	const SharedFD &fd() const
-	{
-		return fd_;
-	}
-
 	explicit operator bool() const
 	{
 		return !!obj_;
 	}
 
 private:
-	std::string name_;
-	SharedFD fd_;
 	T *obj_;
 };
 

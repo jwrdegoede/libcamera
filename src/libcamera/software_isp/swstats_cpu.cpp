@@ -29,7 +29,7 @@ extern bool is_ov01a1s;
  *
  * This class offers a configure function + functions to gather statistics
  * on a line by line basis. This allows CPU based software debayering to
- * interlace debayering and statistics gathering on a line by line bases
+ * interlace debayering and statistics gathering on a line by line basis
  * while the input data is still hot in the cache.
  *
  * It is also possible to specify a window over which to gather
@@ -66,7 +66,7 @@ static const unsigned int kBlueYMul = 29; /* 0.114 * 256 */
 	yVal = r * kRedYMul;               \
 	yVal += g * kGreenYMul;            \
 	yVal += b * kBlueYMul;             \
-	stats_.yHistogram[yVal / (256 * SwIspStats::kYHistogramSize * (div))]++;
+	stats_.yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++;
 
 #define SWSTATS_FINISH_LINE_STATS() \
 	stats_.sumR_ += sumR;       \

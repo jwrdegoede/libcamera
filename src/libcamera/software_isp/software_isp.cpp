@@ -64,7 +64,7 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const ControlInfoMap &sensorControls)
 	: debayer_(nullptr),
-	  debayerParams_{ DebayerParams::kGain10, DebayerParams::kGain10, DebayerParams::kGain10, 0.5f },
+	  debayerParams_{ DebayerParams::kGain10, DebayerParams::kGain10, DebayerParams::kGain10, 0.5f, 0 },
 	  dmaHeap_(DmaHeap::DmaHeapFlag::Cma | DmaHeap::DmaHeapFlag::System)
 {
 	if (!dmaHeap_.isValid()) {

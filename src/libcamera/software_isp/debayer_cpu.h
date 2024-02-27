@@ -70,13 +70,13 @@ private:
 	 * is slow uncached memory it can be copied to faster memory before
 	 * debayering. Debayering a standard 2x2 Bayer pattern requires access
 	 * to the previous and next src lines for interpolating the missing
-	 * colors. To allow copying the src lines only once 3 buffers each
-	 * holding a single line are used, re-using the oldest buffer for
+	 * colors. To allow copying the src lines only once 3 temporary buffers
+	 * each holding a single line are used, re-using the oldest buffer for
 	 * the next line and the pointers are swizzled so that:
 	 * src[0] = previous-line, src[1] = currrent-line, src[2] = next-line.
 	 * This way the 3 pointers passed to the debayer functions form
 	 * a sliding window over the src avoiding the need to copy each
-	 * line more then once.
+	 * line more than once.
 	 *
 	 * Similarly for bayer patterns which repeat every 4 lines, 5 src
 	 * pointers are passed holding: src[0] = 2-lines-up, src[1] = 1-line-up

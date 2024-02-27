@@ -60,9 +60,9 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
 /**
  * \brief Constructs SoftwareIsp object
  * \param[in] pipe The pipeline handler in use
- * \param[in] sensorControls ControlInfoMap describing the controls supported by the sensor
+ * \param[in] sensor Pointer to the CameraSensor instance owned by the pipeline handler
  */
-SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const ControlInfoMap &sensorControls)
+SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
 	: debayer_(nullptr),
 	  debayerParams_{ DebayerParams::kGain10, DebayerParams::kGain10, DebayerParams::kGain10, 0.5f, 0 },
 	  dmaHeap_(DmaHeap::DmaHeapFlag::Cma | DmaHeap::DmaHeapFlag::System)
@@ -97,10 +97,10 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const ControlInfoMap &sensorCont
 		return;
 	}
 
-	int ret = ipa_->init(IPASettings{ "No cfg file", "No sensor model" },
+	int ret = ipa_->init(IPASettings{ "No cfg file", sensor->model() },
 			     debayer_->getStatsFD(),
 			     sharedParams_.fd(),
-			     sensorControls);
+			     sensor->controls());
 	if (ret) {
 		LOG(SoftwareIsp, Error) << "IPA init failed";
 		debayer_.reset();

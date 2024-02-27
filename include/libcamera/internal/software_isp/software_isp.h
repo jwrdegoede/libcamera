@@ -26,6 +26,7 @@
 #include <libcamera/ipa/soft_ipa_interface.h>
 #include <libcamera/ipa/soft_ipa_proxy.h>
 
+#include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/dma_heaps.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/shared_mem_object.h"
@@ -43,7 +44,7 @@ LOG_DECLARE_CATEGORY(SoftwareIsp)
 class SoftwareIsp
 {
 public:
-	SoftwareIsp(PipelineHandler *pipe, const ControlInfoMap &sensorControls);
+	SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor);
 	~SoftwareIsp();
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }

@@ -526,7 +526,7 @@ int SimpleCameraData::init()
 	 * Instantiate Soft ISP if this is enabled for the given driver and no converter is used.
 	 */
 	if (!converter_ && pipe->swIspEnabled()) {
-		swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor_->controls());
+		swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor_.get());
 		if (!swIsp_->isValid()) {
 			LOG(SimplePipeline, Warning)
 				<< "Failed to create software ISP, disabling software debayering";

@@ -14,7 +14,7 @@ DebayerCpu class builtin benchmark
 ----------------------------------
 
 The DebayerCpu class has a builtin benchmark. This benchmark
-measures the time spend on processing (collecting statistics
+measures the time spent on processing (collecting statistics
 and debayering) only, it does not measure the time spent on
 capturing or outputting the frames.
 
@@ -66,10 +66,10 @@ the power consumption:
 
    watch -n 10 cat /sys/class/power_supply/BAT0/power_now /sys/class/hwmon/hwmon6/fan?_input
 
-Note this not only measures the power consumption in ųW it also monitors
+Note this not only measures the power consumption in µW it also monitors
 the speed of this laptop's 2 fans. This is important because depending on
 the ambient temperature the 2 fans may spin up while testing and this
-will cause an additional power consumption of approx. 0.5W messing up
+will cause an additional power consumption of approx. 0.5 W messing up
 the measurement.
 
 After starting qcam + the watch command let the laptop sit without using
@@ -78,5 +78,5 @@ have not turned on and manually take a couple of consecutive power readings
 and avarage these.
 
 On the example Lenovo ThinkPad X1 Yoga Gen 8 laptop this results in
-a measured power consumption of approx. 13W while running qcam versus
-approx. 4-5W while setting idle with its OLED panel on.
+a measured power consumption of approx. 13 W while running qcam versus
+approx. 4-5 W while setting idle with its OLED panel on.

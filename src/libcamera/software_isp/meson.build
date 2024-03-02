@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: CC0-1.0
 
-softisp_enabled = pipelines.contains('simple')
+softisp_enabled = pipelines.contains('simple') or pipelines.contains('atomisp')
 summary({'SoftISP support' : softisp_enabled}, section : 'Configuration')
 
 if not softisp_enabled

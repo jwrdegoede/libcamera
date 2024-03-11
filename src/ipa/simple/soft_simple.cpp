@@ -22,6 +22,8 @@
 #include "libcamera/internal/software_isp/debayer_params.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
 
+#include "libipa/camera_sensor_helper.h"
+
 #include "black_level.h"
 
 namespace libcamera {
@@ -67,18 +69,27 @@ private:
 	DebayerParams *params_;
 	SwIspStats *stats_;
 	BlackLevel blackLevel_;
+	std::unique_ptr<CameraSensorHelper> camHelper_;
 
 	int32_t exposure_min_, exposure_max_;
-	int32_t again_min_, again_max_;
-	int32_t again_, exposure_;
+	int32_t exposure_;
+	double again_min_, again_max_, againMinStep_;
+	double again_;
 	unsigned int ignore_updates_;
 };
 
-int IPASoftSimple::init([[maybe_unused]] const IPASettings &settings,
+int IPASoftSimple::init(const IPASettings &settings,
 			const SharedFD &fdStats,
 			const SharedFD &fdParams,
 			const ControlInfoMap &sensorInfoMap)
 {
+	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
+	if (camHelper_ == nullptr) {
+		LOG(IPASoft, Warning)
+			<< "Failed to create camera sensor helper for "
+			<< settings.sensorModel;
+	}
+
 	fdStats_ = fdStats;
 	if (!fdStats_.isValid()) {
 		LOG(IPASoft, Error) << "Invalid Statistics handle";
@@ -132,25 +143,35 @@ int IPASoftSimple::configure(const ControlInfoMap &sensorInfoMap)
 		exposure_min_ = 1;
 	}
 
-	again_min_ = gain_info.min().get<int32_t>();
-	again_max_ = gain_info.max().get<int32_t>();
-	/*
-	 * The camera sensor gain (g) is usually not equal to the value written
-	 * into the gain register (x). But the way how the AGC algorithm changes
-	 * the gain value to make the total exposure closer to the optimum assumes
-	 * that g(x) is not too far from linear function. If the minimal gain is 0,
-	 * the g(x) is likely to be far from the linear, like g(x) = a / (b * x + c).
-	 * To avoid unexpected changes to the gain by the AGC algorithm (abrupt near
-	 * one edge, and very small near the other) we limit the range of the gain
-	 * values used.
-	 */
-	if (!again_min_) {
-		LOG(IPASoft, Warning) << "Minimum gain is zero, that can't be linear";
-		again_min_ = std::min(100, again_min_ / 2 + again_max_ / 2);
+	int32_t again_min = gain_info.min().get<int32_t>();
+	int32_t again_max = gain_info.max().get<int32_t>();
+
+	if (camHelper_) {
+		again_min_ = camHelper_->gain(again_min);
+		again_max_ = camHelper_->gain(again_max);
+		againMinStep_ = (again_max_ - again_min_) / 100.0;
+	} else {
+		/*
+		 * The camera sensor gain (g) is usually not equal to the value written
+		 * into the gain register (x). But the way how the AGC algorithm changes
+		 * the gain value to make the total exposure closer to the optimum assumes
+		 * that g(x) is not too far from linear function. If the minimal gain is 0,
+		 * the g(x) is likely to be far from the linear, like g(x) = a / (b * x + c).
+		 * To avoid unexpected changes to the gain by the AGC algorithm (abrupt near
+		 * one edge, and very small near the other) we limit the range of the gain
+		 * values used.
+		 */
+		again_max_ = again_max;
+		if (!again_min) {
+			LOG(IPASoft, Warning) << "Minimum gain is zero, that can't be linear";
+			again_min_ = std::min(100, again_min / 2 + again_max / 2);
+		}
+		againMinStep_ = 1.0;
 	}
 
 	LOG(IPASoft, Info) << "Exposure " << exposure_min_ << "-" << exposure_max_
-			   << ", gain " << again_min_ << "-" << again_max_;
+			   << ", gain " << again_min_ << "-" << again_max_
+			   << " (" << againMinStep_ << ")";
 
 	return 0;
 }
@@ -252,12 +273,14 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	ControlList ctrls(sensorControls);
 
 	exposure_ = ctrls.get(V4L2_CID_EXPOSURE).get<int32_t>();
-	again_ = ctrls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
+	int32_t again = ctrls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
+	again_ = camHelper_ ? camHelper_->gain(again) : again;
 
 	updateExposure(exposureMSV);
 
 	ctrls.set(V4L2_CID_EXPOSURE, exposure_);
-	ctrls.set(V4L2_CID_ANALOGUE_GAIN, again_);
+	ctrls.set(V4L2_CID_ANALOGUE_GAIN,
+		  static_cast<int32_t>(camHelper_ ? camHelper_->gainCode(again_) : again_));
 
 	ignore_updates_ = 2;
 
@@ -276,7 +299,7 @@ void IPASoftSimple::updateExposure(double exposureMSV)
 	static constexpr uint8_t kExpNumeratorUp = kExpDenominator + 1;
 	static constexpr uint8_t kExpNumeratorDown = kExpDenominator - 1;
 
-	int next;
+	double next;
 
 	if (exposureMSV < kExposureOptimal - kExposureSatisfactory) {
 		next = exposure_ * kExpNumeratorUp / kExpDenominator;
@@ -286,18 +309,18 @@ void IPASoftSimple::updateExposure(double exposureMSV)
 			exposure_ = next;
 		if (exposure_ >= exposure_max_) {
 			next = again_ * kExpNumeratorUp / kExpDenominator;
-			if (next - again_ < 1)
-				again_ += 1;
+			if (next - again_ < againMinStep_)
+				again_ += againMinStep_;
 			else
 				again_ = next;
 		}
 	}
 
 	if (exposureMSV > kExposureOptimal + kExposureSatisfactory) {
-		if (exposure_ == exposure_max_ && again_ != again_min_) {
+		if (exposure_ == exposure_max_ && again_ > again_min_) {
 			next = again_ * kExpNumeratorDown / kExpDenominator;
-			if (again_ - next < 1)
-				again_ -= 1;
+			if (again_ - next < againMinStep_)
+				again_ -= againMinStep_;
 			else
 				again_ = next;
 		} else {

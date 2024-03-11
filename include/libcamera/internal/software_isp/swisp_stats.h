@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <array>
+
 namespace libcamera {
 
 /**
@@ -28,11 +30,15 @@ struct SwIspStats {
 	/**
 	 * \brief Number of bins in the yHistogram.
 	 */
-	static constexpr unsigned int kYHistogramSize = 16;
+	static constexpr unsigned int kYHistogramSize = 64;
+	/**
+	 * \brief Type of the histogram.
+	 */
+	using histogram = std::array<unsigned int, kYHistogramSize>;
 	/**
 	 * \brief A histogram of luminance values.
 	 */
-	std::array<unsigned int, kYHistogramSize> yHistogram;
+	histogram yHistogram;
 };
 
 } /* namespace libcamera */

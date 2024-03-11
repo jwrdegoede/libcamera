@@ -22,6 +22,8 @@
 #include "libcamera/internal/software_isp/debayer_params.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
 
+#include "black_level.h"
+
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(IPASoft)
@@ -33,7 +35,8 @@ class IPASoftSimple : public ipa::soft::IPASoftInterface
 public:
 	IPASoftSimple()
 		: params_(static_cast<DebayerParams *>(MAP_FAILED)),
-		  stats_(static_cast<SwIspStats *>(MAP_FAILED)), ignore_updates_(0)
+		  stats_(static_cast<SwIspStats *>(MAP_FAILED)),
+		  blackLevel_(BlackLevel()), ignore_updates_(0)
 	{
 	}
 
@@ -63,6 +66,7 @@ private:
 	SharedFD fdParams_;
 	DebayerParams *params_;
 	SwIspStats *stats_;
+	BlackLevel blackLevel_;
 
 	int32_t exposure_min_, exposure_max_;
 	int32_t again_min_, again_max_;
@@ -196,6 +200,10 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	params_->gainG = 256;
 	params_->gamma = 0.5;
 
+	if (ignore_updates_ > 0)
+		blackLevel_.update(stats_->yHistogram);
+	params_->blackLevel = blackLevel_.get();
+
 	setIspParams.emit(0);
 
 	/*
@@ -211,18 +219,19 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	 * Calculate Mean Sample Value (MSV) according to formula from:
 	 * https://www.araa.asn.au/acra/acra2007/papers/paper84final.pdf
 	 */
-	constexpr unsigned int yHistValsPerBin =
-		SwIspStats::kYHistogramSize / kExposureBinsCount;
-	constexpr unsigned int yHistValsPerBinMod =
-		SwIspStats::kYHistogramSize /
-		(SwIspStats::kYHistogramSize % kExposureBinsCount + 1);
+	const unsigned int blackLevelHistIdx =
+		params_->blackLevel / (256 / SwIspStats::kYHistogramSize);
+	const unsigned int histogramSize = SwIspStats::kYHistogramSize - blackLevelHistIdx;
+	const unsigned int yHistValsPerBin = histogramSize / kExposureBinsCount;
+	const unsigned int yHistValsPerBinMod =
+		histogramSize / (histogramSize % kExposureBinsCount + 1);
 	int ExposureBins[kExposureBinsCount] = {};
 	unsigned int denom = 0;
 	unsigned int num = 0;
 
-	for (unsigned int i = 0; i < SwIspStats::kYHistogramSize; i++) {
+	for (unsigned int i = 0; i < histogramSize; i++) {
 		unsigned int idx = (i - (i / yHistValsPerBinMod)) / yHistValsPerBin;
-		ExposureBins[idx] += stats_->yHistogram[i];
+		ExposureBins[idx] += stats_->yHistogram[blackLevelHistIdx + i];
 	}
 
 	for (unsigned int i = 0; i < kExposureBinsCount; i++) {
@@ -256,7 +265,8 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 
 	LOG(IPASoft, Debug) << "exposureMSV " << exposureMSV
 			    << " exp " << exposure_ << " again " << again_
-			    << " gain R/B " << params_->gainR << "/" << params_->gainB;
+			    << " gain R/B " << params_->gainR << "/" << params_->gainB
+			    << " black level " << params_->blackLevel;
 }
 
 void IPASoftSimple::updateExposure(double exposureMSV)

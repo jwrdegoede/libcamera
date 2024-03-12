@@ -1481,12 +1481,20 @@ int SimplePipelineHandler::resetRoutingTable(V4L2Subdevice *subdev)
 	V4L2Subdevice::Routing routing = {};
 
 	int ret = subdev->getRouting(&routing, V4L2Subdevice::TryFormat);
-	if (ret)
+	if (ret) {
+		LOG(SimplePipeline, Error)
+			<< "Failed to get routing table for " << subdev->deviceNode()
+			<< ": "	<< strerror(-ret);
 		return ret;
+	}
 
 	ret = subdev->setRouting(&routing, V4L2Subdevice::ActiveFormat);
-	if (ret)
+	if (ret) {
+		LOG(SimplePipeline, Error)
+			<< "Failed to set routing table for " << subdev->deviceNode()
+			<< ": "	<< strerror(-ret);
 		return ret;
+	}
 
 	/*
 	 * If the routing table is empty we won't be able to meaningfully use

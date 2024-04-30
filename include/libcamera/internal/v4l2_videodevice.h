@@ -92,6 +92,10 @@ struct V4L2Capability final : v4l2_capability {
 	}
 	bool isMeta() const
 	{
+		/* Treat devs which combine video and meta as video not meta */
+		if (isVideo())
+			return false;
+
 		return device_caps() & (V4L2_CAP_META_CAPTURE |
 					V4L2_CAP_META_OUTPUT);
 	}

@@ -784,9 +784,6 @@ int DebayerCpu::configure(const StreamConfiguration &inputCfg,
 			lineBuffers_[i].resize(lineBufferLength_);
 	}
 
-	measuredFrames_ = 0;
-	frameProcessTime_ = 0;
-
 	return 0;
 }
 
@@ -985,13 +982,6 @@ static inline int64_t timeDiff(timespec &after, timespec &before)
 
 void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
 {
-	timespec frameStartTime;
-
-	if (measuredFrames_ < DebayerCpu::kLastFrameToMeasure) {
-		frameStartTime = {};
-		clock_gettime(CLOCK_MONOTONIC_RAW, &frameStartTime);
-	}
-
 	green_ = params.green;
 	red_ = swapRedBlueGains_ ? params.blue : params.red;
 	blue_ = swapRedBlueGains_ ? params.red : params.blue;
@@ -1010,6 +1000,7 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		return;
 	}
 
+	bench_.startFrame();
 	stats_->startFrame();
 
 	if (inputConfig_.patternSize.height == 2)
@@ -1019,24 +1010,8 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
-	/* Measure before emitting signals */
-	if (measuredFrames_ < DebayerCpu::kLastFrameToMeasure &&
-	    ++measuredFrames_ > DebayerCpu::kFramesToSkip) {
-		timespec frameEndTime = {};
-		clock_gettime(CLOCK_MONOTONIC_RAW, &frameEndTime);
-		frameProcessTime_ += timeDiff(frameEndTime, frameStartTime);
-		if (measuredFrames_ == DebayerCpu::kLastFrameToMeasure) {
-			const unsigned int measuredFrames = DebayerCpu::kLastFrameToMeasure -
-							    DebayerCpu::kFramesToSkip;
-			LOG(Debayer, Info)
-				<< "Processed " << measuredFrames
-				<< " frames in " << frameProcessTime_ / 1000 << "us, "
-				<< frameProcessTime_ / (1000 * measuredFrames)
-				<< " us/frame";
-		}
-	}
-
 	stats_->finishFrame();
+	bench_.finishFrame();
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

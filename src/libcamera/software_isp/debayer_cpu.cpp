@@ -528,9 +528,6 @@ int DebayerCpu::configure(const StreamConfiguration &inputCfg,
 			lineBuffers_[i].resize(lineBufferLength_);
 	}
 
-	measuredFrames_ = 0;
-	frameProcessTime_ = 0;
-
 	return 0;
 }
 
@@ -739,22 +736,11 @@ void syncBufferForCPU(FrameBuffer *buffer, uint64_t syncFlags)
 	}
 }
 
-inline int64_t timeDiff(timespec &after, timespec &before)
-{
-	return (after.tv_sec - before.tv_sec) * 1000000000LL +
-	       (int64_t)after.tv_nsec - (int64_t)before.tv_nsec;
-}
-
 } /* namespace */
 
 void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
 {
-	timespec frameStartTime;
-
-	if (measuredFrames_ < DebayerCpu::kLastFrameToMeasure) {
-		frameStartTime = {};
-		clock_gettime(CLOCK_MONOTONIC_RAW, &frameStartTime);
-	}
+	bench_.startFrame();
 
 	syncBufferForCPU(input, DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ);
 	syncBufferForCPU(output, DMA_BUF_SYNC_START | DMA_BUF_SYNC_WRITE);
@@ -790,21 +776,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	syncBufferForCPU(input, DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ);
 
 	/* Measure before emitting signals */
-	if (measuredFrames_ < DebayerCpu::kLastFrameToMeasure &&
-	    ++measuredFrames_ > DebayerCpu::kFramesToSkip) {
-		timespec frameEndTime = {};
-		clock_gettime(CLOCK_MONOTONIC_RAW, &frameEndTime);
-		frameProcessTime_ += timeDiff(frameEndTime, frameStartTime);
-		if (measuredFrames_ == DebayerCpu::kLastFrameToMeasure) {
-			const unsigned int measuredFrames = DebayerCpu::kLastFrameToMeasure -
-							    DebayerCpu::kFramesToSkip;
-			LOG(Debayer, Info)
-				<< "Processed " << measuredFrames
-				<< " frames in " << frameProcessTime_ / 1000 << "us, "
-				<< frameProcessTime_ / (1000 * measuredFrames)
-				<< " us/frame";
-		}
-	}
+	bench_.finishFrame();
 
 	/*
 	 * Buffer ids are currently not used, so pass zeros as its parameter.

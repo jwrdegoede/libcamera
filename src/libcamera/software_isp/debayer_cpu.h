@@ -17,6 +17,7 @@
 
 #include <libcamera/base/object.h>
 
+#include "libcamera/internal/software_isp/benchmark.h"
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/software_isp/swstats_cpu.h"
 
@@ -153,11 +154,7 @@ private:
 	unsigned int xShift_; /* Offset of 0/1 applied to window_.x */
 	bool enableInputMemcpy_;
 	bool swapRedBlueGains_;
-	unsigned int measuredFrames_;
-	int64_t frameProcessTime_;
-	/* Skip 30 frames for things to stabilize then measure 30 frames */
-	static constexpr unsigned int kFramesToSkip = 30;
-	static constexpr unsigned int kLastFrameToMeasure = 60;
+	Benchmark bench_;
 };
 
 } /* namespace libcamera */

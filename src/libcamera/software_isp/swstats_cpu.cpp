@@ -16,6 +16,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/mapped_framebuffer.h"
 
 namespace libcamera {
 
@@ -428,8 +429,11 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 	if (is_ov01a1s)
 		bayerFormat.order = BayerFormat::IGIG_GBGR_IGIG_GRGB;
 
+	stride_ = inputCfg.stride;
+
 	if (bayerFormat.packing == BayerFormat::Packing::None &&
 	    setupStandardBayerOrder(bayerFormat.order) == 0) {
+		bpp_ = (bayerFormat.bitDepth + 7) & ~7;
 		switch (bayerFormat.bitDepth) {
 		case 8:
 			stats0_ = &SwStatsCpu::statsBGGR8Line0;
@@ -450,6 +454,7 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		/* Skip every 3th and 4th line, sample every other 2x2 block */
 		ySkipMask_ = 0x02;
 		xShift_ = 0;
+		bpp_ = 10;
 
 		switch (bayerFormat.order) {
 		case BayerFormat::BGGR:
@@ -474,6 +479,7 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		patternSize_.width = 4;
 		ySkipMask_ = 0x04;
 		xShift_ = 0;
+		bpp_ = 10;
 		swapLines_ = false;
 		stats0_ = &SwStatsCpu::statsRGBIR10Line0;
 		stats2_ = &SwStatsCpu::statsRGBIR10Line2;
@@ -501,6 +507,73 @@ void SwStatsCpu::setWindow(const Rectangle &window)
 	window_.width -= xShift_;
 	window_.width &= ~(patternSize_.width - 1);
 	window_.height &= ~(patternSize_.height - 1);
+}
+
+void SwStatsCpu::processFrame2(const uint8_t *src)
+{
+	unsigned int yEnd = window_.y + window_.height;
+	const uint8_t *linePointers[3];
+
+	/* Adjust src to top left corner of the window */
+	src += window_.y * stride_ + window_.x * bpp_ / 8;
+
+	for (unsigned int y = window_.y; y < yEnd; y += 2) {
+		if (y & ySkipMask_) {
+			src += stride_ * 2;
+			continue;
+		}
+
+		/* linePointers[0] is not used by any stats0_ functions */
+		linePointers[1] = src;
+		linePointers[2] = src + stride_;
+		(this->*stats0_)(linePointers);
+		src += stride_ * 2;
+	}
+}
+
+void SwStatsCpu::processFrame4(const uint8_t *src)
+{
+	const unsigned int yEnd = window_.y + window_.height;
+	const uint8_t *linePointers[4];
+
+	/* Adjust src to top left corner of the window */
+	src += window_.y * stride_ + window_.x * bpp_ / 8;
+
+	for (unsigned int y = window_.y; y < yEnd; y += 4) {
+		if (y & ySkipMask_) {
+			src += stride_ * 4;
+			continue;
+		}
+
+		/* linePointers[0] and [1] are not used by 4 line pattern stats0_ functions */
+		linePointers[2] = src;
+		linePointers[3] = src + stride_;
+		(this->*stats0_)(linePointers);
+		src += stride_ * 2;
+
+		linePointers[2] = src;
+		linePointers[3] = src + stride_;
+		(this->*stats2_)(linePointers);
+		src += stride_ * 2;
+	}
+}
+
+void SwStatsCpu::processFrame(FrameBuffer *input)
+{
+	bench_.startFrame();
+
+	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
+	if (!in.isValid()) {
+		LOG(SwStatsCpu, Error) << "mmap-ing buffer(s) failed";
+		return;
+	}
+
+	if (patternSize_.height == 2)
+		processFrame2(in.planes()[0].data());
+	else
+		processFrame4(in.planes()[0].data());
+
+	bench_.finishFrame();
 }
 
 } /* namespace libcamera */

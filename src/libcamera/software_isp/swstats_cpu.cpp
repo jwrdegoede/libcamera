@@ -16,6 +16,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/mapped_framebuffer.h"
 
 namespace libcamera {
 
@@ -360,11 +361,14 @@ int SwStatsCpu::setupStandardBayerOrder(BayerFormat::Order order)
  */
 int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 {
+	stride_ = inputCfg.stride;
+
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputCfg.pixelFormat);
 
 	if (bayerFormat.packing == BayerFormat::Packing::None &&
 	    setupStandardBayerOrder(bayerFormat.order) == 0) {
+		processFrame_ = &SwStatsCpu::processBayerFrame2;
 		switch (bayerFormat.bitDepth) {
 		case 8:
 			stats0_ = &SwStatsCpu::statsBGGR8Line0;
@@ -385,6 +389,7 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		/* Skip every 3th and 4th line, sample every other 2x2 block */
 		ySkipMask_ = 0x02;
 		xShift_ = 0;
+		processFrame_ = &SwStatsCpu::processBayerFrame2;
 
 		switch (bayerFormat.order) {
 		case BayerFormat::BGGR:
@@ -423,6 +428,52 @@ void SwStatsCpu::setWindow(const Rectangle &window)
 	window_.width -= xShift_;
 	window_.width &= ~(patternSize_.width - 1);
 	window_.height &= ~(patternSize_.height - 1);
+}
+
+void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
+{
+	const uint8_t *src = in.planes()[0].data();
+	const uint8_t *linePointers[3];
+
+	/* Adjust src for starting at window_.y */
+	src += window_.y * stride_;
+
+	for (unsigned int y = 0; y < window_.height; y += 2) {
+		if (y & ySkipMask_) {
+			src += stride_ * 2;
+			continue;
+		}
+
+		/* linePointers[0] is not used by any stats0_ functions */
+		linePointers[1] = src;
+		linePointers[2] = src + stride_;
+		(this->*stats0_)(linePointers);
+		src += stride_ * 2;
+	}
+}
+
+/**
+ * \brief Calculate statistics for a frame in one go
+ * \param[in] frame The frame number
+ * \param[in] bufferId ID of the statistics buffer
+ * \param[in] input The frame to process
+ *
+ * This may only be called after a successful setWindow() call.
+ */
+void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input)
+{
+	bench_.startFrame();
+	startFrame();
+
+	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
+	if (!in.isValid()) {
+		LOG(SwStatsCpu, Error) << "mmap-ing buffer(s) failed";
+		return;
+	}
+
+	(this->*processFrame_)(in);
+	finishFrame(frame, bufferId);
+	bench_.finishFrame();
 }
 
 } /* namespace libcamera */

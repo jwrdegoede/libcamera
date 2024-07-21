@@ -18,8 +18,11 @@
 #include <libcamera/geometry.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
+
+#include "benchmark.h"
 
 namespace libcamera {
 
@@ -42,6 +45,7 @@ public:
 	void setWindow(const Rectangle &window);
 	void startFrame();
 	void finishFrame(uint32_t frame, uint32_t bufferId);
+	void processFrame(FrameBuffer *input);
 
 	void processLine0(unsigned int y, const uint8_t *src[])
 	{
@@ -77,6 +81,9 @@ private:
 	void statsBGGR10PLine0(const uint8_t *src[]);
 	void statsGBRG10PLine0(const uint8_t *src[]);
 
+	void processFrame2(const uint8_t *src);
+	void processFrame4(const uint8_t *src);
+
 	/* Variables set by configure(), used every line */
 	statsProcessFn stats0_;
 	statsProcessFn stats2_;
@@ -89,9 +96,12 @@ private:
 	Size patternSize_;
 
 	unsigned int xShift_;
+	unsigned int bpp_; /* Memory used per pixel, not precision */
+	unsigned int stride_;
 
 	SharedMemObject<SwIspStats> sharedStats_;
 	SwIspStats stats_;
+	Benchmark bench_;
 };
 
 } /* namespace libcamera */

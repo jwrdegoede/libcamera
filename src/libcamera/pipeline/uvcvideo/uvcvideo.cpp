@@ -13,6 +13,7 @@
 #include <tuple>
 
 #include <libcamera/base/log.h>
+#include <libcamera/base/mutex.h>
 #include <libcamera/base/utils.h>
 
 #include <libcamera/camera.h>
@@ -88,15 +89,23 @@ public:
 
 	bool match(DeviceEnumerator *enumerator) override;
 
+	int open(UVCCameraData *data);
+	void close(UVCCameraData *data);
 private:
 	int processControl(ControlList *controls, unsigned int id,
 			   const ControlValue &value);
 	int processControls(UVCCameraData *data, Request *request);
 
+	bool acquireDevice(Camera *camera) override;
+	void releaseDevice(Camera *camera) override;
+
 	UVCCameraData *cameraData(Camera *camera)
 	{
 		return static_cast<UVCCameraData *>(camera->_d());
 	}
+
+	Mutex openLock_;
+	unsigned int openCount_ LIBCAMERA_TSA_GUARDED_BY(openLock_);
 };
 
 UVCCameraConfiguration::UVCCameraConfiguration(UVCCameraData *data)
@@ -158,7 +167,13 @@ CameraConfiguration::Status UVCCameraConfiguration::validate()
 	format.fourcc = data_->video_->toV4L2PixelFormat(cfg.pixelFormat);
 	format.size = cfg.size;
 
-	int ret = data_->video_->tryFormat(&format);
+	PipelineHandlerUVC *pipe = static_cast<PipelineHandlerUVC *>(data_->pipe());
+	int ret = pipe->open(data_);
+	if (ret)
+		return Invalid;
+
+	ret = data_->video_->tryFormat(&format);
+	pipe->close(data_);
 	if (ret)
 		return Invalid;
 
@@ -411,6 +426,39 @@ bool PipelineHandlerUVC::match(DeviceEnumerator *enumerator)
 	return true;
 }
 
+int PipelineHandlerUVC::open(UVCCameraData *data)
+{
+	MutexLocker locker(openLock_);
+
+	if (openCount_ == 0) {
+		int ret = data->video_->open();
+		if (ret)
+			return ret;
+	}
+
+	openCount_++;
+	return 0;
+}
+
+void PipelineHandlerUVC::close(UVCCameraData *data)
+{
+	MutexLocker locker(openLock_);
+
+	openCount_--;
+	if (openCount_ == 0)
+		data->video_->close();
+}
+
+bool PipelineHandlerUVC::acquireDevice(Camera *camera)
+{
+	return open(cameraData(camera)) == 0;
+}
+
+void PipelineHandlerUVC::releaseDevice(Camera *camera)
+{
+	close(cameraData(camera));
+}
+
 int UVCCameraData::init(MediaDevice *media)
 {
 	int ret;
@@ -511,6 +559,12 @@ int UVCCameraData::init(MediaDevice *media)
 	}
 
 	controlInfo_ = ControlInfoMap(std::move(ctrls), controls::controls);
+
+	/*
+	 * Close to allow camera to go into runtime-suspend, video_
+	 * will be re-opened from acquireDevice() and validate().
+	 */
+	video_->close();
 
 	return 0;
 }

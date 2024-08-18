@@ -61,12 +61,15 @@ private:
 class UVCCameraConfiguration : public CameraConfiguration
 {
 public:
-	UVCCameraConfiguration(UVCCameraData *data);
+	UVCCameraConfiguration(Camera *camera);
 
 	Status validate() override;
 
 private:
-	UVCCameraData *data_;
+	UVCCameraData *cameraData()
+	{
+		return static_cast<UVCCameraData *>(camera_->_d());
+	}
 };
 
 class PipelineHandlerUVC : public PipelineHandler
@@ -99,13 +102,14 @@ private:
 	}
 };
 
-UVCCameraConfiguration::UVCCameraConfiguration(UVCCameraData *data)
-	: CameraConfiguration(), data_(data)
+UVCCameraConfiguration::UVCCameraConfiguration(Camera *camera)
+	: CameraConfiguration(camera)
 {
 }
 
 CameraConfiguration::Status UVCCameraConfiguration::validate()
 {
+	UVCCameraData *data = cameraData();
 	Status status = Valid;
 
 	if (config_.empty())
@@ -155,10 +159,10 @@ CameraConfiguration::Status UVCCameraConfiguration::validate()
 	cfg.bufferCount = 4;
 
 	V4L2DeviceFormat format;
-	format.fourcc = data_->video_->toV4L2PixelFormat(cfg.pixelFormat);
+	format.fourcc = data->video_->toV4L2PixelFormat(cfg.pixelFormat);
 	format.size = cfg.size;
 
-	int ret = data_->video_->tryFormat(&format);
+	int ret = data->video_->tryFormat(&format);
 	if (ret)
 		return Invalid;
 
@@ -184,7 +188,7 @@ PipelineHandlerUVC::generateConfiguration(Camera *camera,
 {
 	UVCCameraData *data = cameraData(camera);
 	std::unique_ptr<CameraConfiguration> config =
-		std::make_unique<UVCCameraConfiguration>(data);
+		std::make_unique<UVCCameraConfiguration>(camera);
 
 	if (roles.empty())
 		return config;

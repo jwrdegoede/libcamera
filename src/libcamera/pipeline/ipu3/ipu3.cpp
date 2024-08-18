@@ -99,7 +99,7 @@ public:
 	static constexpr unsigned int kBufferCount = 4;
 	static constexpr unsigned int kMaxStreams = 3;
 
-	IPU3CameraConfiguration(IPU3CameraData *data);
+	IPU3CameraConfiguration(Camera *camera);
 
 	Status validate() override;
 
@@ -110,12 +110,10 @@ public:
 	Transform combinedTransform_;
 
 private:
-	/*
-	 * The IPU3CameraData instance is guaranteed to be valid as long as the
-	 * corresponding Camera instance is valid. In order to borrow a
-	 * reference to the camera data, store a new reference to the camera.
-	 */
-	const IPU3CameraData *data_;
+	const IPU3CameraData *cameraData()
+	{
+		return static_cast<const IPU3CameraData *>(camera_->_d());
+	}
 
 	StreamConfiguration cio2Configuration_;
 	ImgUDevice::PipeConfig pipeConfig_;
@@ -169,14 +167,14 @@ private:
 	std::vector<IPABuffer> ipaBuffers_;
 };
 
-IPU3CameraConfiguration::IPU3CameraConfiguration(IPU3CameraData *data)
-	: CameraConfiguration()
+IPU3CameraConfiguration::IPU3CameraConfiguration(Camera *camera)
+	: CameraConfiguration(camera)
 {
-	data_ = data;
 }
 
 CameraConfiguration::Status IPU3CameraConfiguration::validate()
 {
+	const IPU3CameraData *data = cameraData();
 	Status status = Valid;
 
 	if (config_.empty())
@@ -188,7 +186,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 	 * need to apply to the sensor to save us working it out again.
 	 */
 	Orientation requestedOrientation = orientation;
-	combinedTransform_ = data_->cio2_.sensor()->computeTransform(&orientation);
+	combinedTransform_ = data->cio2_.sensor()->computeTransform(&orientation);
 	if (orientation != requestedOrientation)
 		status = Adjusted;
 
@@ -262,9 +260,9 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 						      ImgUDevice::kIFMaxCropHeight })
 				  .grownBy({ ImgUDevice::kOutputMarginWidth,
 					     ImgUDevice::kOutputMarginHeight })
-				  .boundedTo(data_->cio2_.sensor()->resolution());
+				  .boundedTo(data->cio2_.sensor()->resolution());
 
-	cio2Configuration_ = data_->cio2_.generateConfiguration(rawSize);
+	cio2Configuration_ = data->cio2_.generateConfiguration(rawSize);
 	if (!cio2Configuration_.pixelFormat.isValid())
 		return Invalid;
 
@@ -292,7 +290,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 			cfg->bufferCount = cio2Configuration_.bufferCount;
 			cfg->stride = info.stride(cfg->size.width, 0, 64);
 			cfg->frameSize = info.frameSize(cfg->size, 64);
-			cfg->setStream(const_cast<Stream *>(&data_->rawStream_));
+			cfg->setStream(const_cast<Stream *>(&data->rawStream_));
 
 			LOG(IPU3, Debug) << "Assigned " << cfg->toString()
 					 << " to the raw stream";
@@ -344,7 +342,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 			 */
 			if (mainOutputAvailable &&
 			    (originalCfg.size == maxYuvSize || yuvCount == 1)) {
-				cfg->setStream(const_cast<Stream *>(&data_->outStream_));
+				cfg->setStream(const_cast<Stream *>(&data->outStream_));
 				mainOutputAvailable = false;
 
 				pipe.main = cfg->size;
@@ -354,7 +352,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 				LOG(IPU3, Debug) << "Assigned " << cfg->toString()
 						 << " to the main output";
 			} else {
-				cfg->setStream(const_cast<Stream *>(&data_->vfStream_));
+				cfg->setStream(const_cast<Stream *>(&data->vfStream_));
 				pipe.viewfinder = cfg->size;
 
 				LOG(IPU3, Debug) << "Assigned " << cfg->toString()
@@ -373,7 +371,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 
 	/* Only compute the ImgU configuration if a YUV stream has been requested. */
 	if (yuvCount) {
-		pipeConfig_ = data_->imgu_->calculatePipeConfig(&pipe);
+		pipeConfig_ = data->imgu_->calculatePipeConfig(&pipe);
 		if (pipeConfig_.isNull()) {
 			LOG(IPU3, Error) << "Failed to calculate pipe configuration: "
 					 << "unsupported resolutions.";
@@ -394,7 +392,7 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 {
 	IPU3CameraData *data = cameraData(camera);
 	std::unique_ptr<IPU3CameraConfiguration> config =
-		std::make_unique<IPU3CameraConfiguration>(data);
+		std::make_unique<IPU3CameraConfiguration>(camera);
 
 	if (roles.empty())
 		return config;

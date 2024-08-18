@@ -296,8 +296,9 @@ bool SensorConfiguration::isValid() const
 /**
  * \brief Create an empty camera configuration
  */
-CameraConfiguration::CameraConfiguration()
-	: orientation(Orientation::Rotate0), config_({})
+CameraConfiguration::CameraConfiguration(Camera *camera)
+	: orientation(Orientation::Rotate0), config_({}),
+	  camera_(camera->shared_from_this())
 {
 }
 

@@ -27,6 +27,7 @@
 
 namespace libcamera {
 
+class Camera;
 class FrameBuffer;
 class FrameBufferAllocator;
 class PipelineHandler;
@@ -96,7 +97,7 @@ public:
 	Orientation orientation;
 
 protected:
-	CameraConfiguration();
+	CameraConfiguration(Camera *camera);
 
 	enum class ColorSpaceFlag {
 		None,
@@ -108,6 +109,7 @@ protected:
 	Status validateColorSpaces(ColorSpaceFlags flags = ColorSpaceFlag::None);
 
 	std::vector<StreamConfiguration> config_;
+	std::shared_ptr<Camera> camera_;
 };
 
 class Camera final : public Object, public std::enable_shared_from_this<Camera>,

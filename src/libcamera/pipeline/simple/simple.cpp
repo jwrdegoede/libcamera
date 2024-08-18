@@ -298,7 +298,7 @@ private:
 class SimpleCameraConfiguration : public CameraConfiguration
 {
 public:
-	SimpleCameraConfiguration(Camera *camera, SimpleCameraData *data);
+	SimpleCameraConfiguration(Camera *camera);
 
 	Status validate() override;
 
@@ -311,13 +311,10 @@ public:
 	const Transform &combinedTransform() const { return combinedTransform_; }
 
 private:
-	/*
-	 * The SimpleCameraData instance is guaranteed to be valid as long as
-	 * the corresponding Camera instance is valid. In order to borrow a
-	 * reference to the camera data, store a new reference to the camera.
-	 */
-	std::shared_ptr<Camera> camera_;
-	SimpleCameraData *data_;
+	SimpleCameraData *cameraData()
+	{
+		return static_cast<SimpleCameraData *>(camera_->_d());
+	}
 
 	const SimpleCameraData::Configuration *pipeConfig_;
 	bool needConversion_;
@@ -945,10 +942,8 @@ std::vector<const MediaPad *> SimpleCameraData::routedSourcePads(MediaPad *sink)
  * Camera Configuration
  */
 
-SimpleCameraConfiguration::SimpleCameraConfiguration(Camera *camera,
-						     SimpleCameraData *data)
-	: CameraConfiguration(), camera_(camera->shared_from_this()),
-	  data_(data), pipeConfig_(nullptr)
+SimpleCameraConfiguration::SimpleCameraConfiguration(Camera *camera)
+	: CameraConfiguration(camera), pipeConfig_(nullptr)
 {
 }
 
@@ -981,7 +976,8 @@ static Size adjustSize(const Size &requestedSize, const SizeRange &supportedSize
 
 CameraConfiguration::Status SimpleCameraConfiguration::validate()
 {
-	const CameraSensor *sensor = data_->sensor_.get();
+	SimpleCameraData *data = cameraData();
+	const CameraSensor *sensor = data->sensor_.get();
 	Status status = Valid;
 
 	if (config_.empty())
@@ -993,8 +989,8 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		status = Adjusted;
 
 	/* Cap the number of entries to the available streams. */
-	if (config_.size() > data_->streams_.size()) {
-		config_.resize(data_->streams_.size());
+	if (config_.size() > data->streams_.size()) {
+		config_.resize(data->streams_.size());
 		status = Adjusted;
 	}
 
@@ -1014,11 +1010,11 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	 * format.
 	 */
 	const std::vector<const SimpleCameraData::Configuration *> *configs =
-		&data_->formats_.begin()->second;
+		&data->formats_.begin()->second;
 
 	for (const StreamConfiguration &cfg : config_) {
-		auto it = data_->formats_.find(cfg.pixelFormat);
-		if (it != data_->formats_.end()) {
+		auto it = data->formats_.find(cfg.pixelFormat);
+		if (it != data->formats_.end()) {
 			configs = &it->second;
 			break;
 		}
@@ -1119,19 +1115,19 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		/* Set the stride, frameSize and bufferCount. */
 		if (needConversion_) {
 			std::tie(cfg.stride, cfg.frameSize) =
-				data_->converter_
-					? data_->converter_->strideAndFrameSize(cfg.pixelFormat,
+				data->converter_
+					? data->converter_->strideAndFrameSize(cfg.pixelFormat,
 										cfg.size)
-					: data_->swIsp_->strideAndFrameSize(cfg.pixelFormat,
+					: data->swIsp_->strideAndFrameSize(cfg.pixelFormat,
 									    cfg.size);
 			if (cfg.stride == 0)
 				return Invalid;
 		} else {
 			V4L2DeviceFormat format;
-			format.fourcc = data_->video_->toV4L2PixelFormat(cfg.pixelFormat);
+			format.fourcc = data->video_->toV4L2PixelFormat(cfg.pixelFormat);
 			format.size = cfg.size;
 
-			int ret = data_->video_->tryFormat(&format);
+			int ret = data->video_->tryFormat(&format);
 			if (ret < 0)
 				return Invalid;
 
@@ -1159,7 +1155,7 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 {
 	SimpleCameraData *data = cameraData(camera);
 	std::unique_ptr<CameraConfiguration> config =
-		std::make_unique<SimpleCameraConfiguration>(camera, data);
+		std::make_unique<SimpleCameraConfiguration>(camera);
 
 	if (roles.empty())
 		return config;

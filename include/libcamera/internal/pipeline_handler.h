@@ -48,6 +48,9 @@ public:
 	bool acquire();
 	void release(Camera *camera);
 
+	int open();
+	void close();
+
 	virtual std::unique_ptr<CameraConfiguration> generateConfiguration(Camera *camera,
 									   Span<const StreamRole> roles) = 0;
 	virtual int configure(Camera *camera, CameraConfiguration *config) = 0;
@@ -81,6 +84,9 @@ protected:
 
 	virtual void releaseDevice(Camera *camera);
 
+	virtual int openDevices();
+	virtual void closeDevices();
+
 	CameraManager *manager_;
 
 private:
@@ -92,6 +98,9 @@ private:
 	void doQueueRequest(Request *request);
 	void doQueueRequests();
 
+	int openUnlocked();
+	void closeUnlocked();
+
 	std::vector<std::shared_ptr<MediaDevice>> mediaDevices_;
 	std::vector<std::weak_ptr<Camera>> cameras_;
 
@@ -101,6 +110,7 @@ private:
 
 	Mutex lock_;
 	unsigned int useCount_ LIBCAMERA_TSA_GUARDED_BY(lock_);
+	unsigned int openCount_ LIBCAMERA_TSA_GUARDED_BY(lock_);
 
 	friend class PipelineHandlerFactoryBase;
 };

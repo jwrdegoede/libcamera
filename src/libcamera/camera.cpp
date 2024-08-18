@@ -343,7 +343,15 @@ void CameraConfiguration::addConfiguration(const StreamConfiguration &cfg)
  */
 CameraConfiguration::Status CameraConfiguration::validate()
 {
-	return validateImpl();
+	int ret = camera_->_d()->pipe()->open();
+	if (ret)
+		return Invalid;
+
+	Status status = validateImpl();
+
+	camera_->_d()->pipe()->close();
+
+	return status;
 }
 
 /**

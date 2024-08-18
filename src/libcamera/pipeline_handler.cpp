@@ -69,7 +69,7 @@ LOG_DEFINE_CATEGORY(Pipeline)
  * through the PipelineHandlerFactoryBase::create() function.
  */
 PipelineHandler::PipelineHandler(CameraManager *manager)
-	: manager_(manager), useCount_(0)
+	: manager_(manager), useCount_(0), openCount_(0)
 {
 }
 
@@ -179,6 +179,12 @@ bool PipelineHandler::acquire()
 		}
 	}
 
+	int ret = openUnlocked();
+	if (ret) {
+		unlockMediaDevices();
+		return false;
+	}
+
 	++useCount_;
 	return true;
 }
@@ -205,12 +211,88 @@ void PipelineHandler::release(Camera *camera)
 
 	ASSERT(useCount_);
 
-	if (useCount_ == 1)
+	if (useCount_ == 1) {
+		closeUnlocked();
 		unlockMediaDevices();
+	}
 
 	releaseDevice(camera);
 
 	--useCount_;
+}
+
+/**
+ * \brief Open pipeline handler's devices
+ *
+ * This function opens hw-devices (e.g. /dev nodes) associated with
+ * the pipeline. This is automatically done when calling acquire().
+ * The pipeline's devices also need to be opened before calling
+ * CameraConfiguration::validate() on a CameraConfiguration belonging
+ * to this pipeline.
+ * Every successful open() call shall be matched with a close() call.
+ *
+ * Pipeline handlers shall not call this function directly as the base
+ * classes handles access internally.
+ *
+ * \context This function is \threadsafe.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int PipelineHandler::open()
+{
+	MutexLocker locker(lock_);
+
+	return openUnlocked();
+}
+
+/* This function must be called with _lock locked */
+int PipelineHandler::openUnlocked()
+{
+	if (openCount_) {
+		++openCount_;
+		return 0;
+	}
+
+	int ret = openDevices();
+	if (ret)
+		return ret;
+
+	++openCount_;
+	return 0;
+}
+
+/**
+ * \brief Close pipeline handler's devices
+ *
+ * This function closes hw-devices previously opened by a call to open().
+ * Pipeline handlers shall not call this function directly as the base
+ * classes handles access internally.
+ *
+ * \context This function is \threadsafe.
+ */
+void PipelineHandler::close()
+{
+	MutexLocker locker(lock_);
+
+	closeUnlocked();
+}
+
+/* This function must be called with _lock locked */
+void PipelineHandler::closeUnlocked()
+{
+	ASSERT(openCount_);
+
+	closeDevices();
+	--openCount_;
+}
+
+int PipelineHandler::openDevices()
+{
+	return 0;
+}
+
+void PipelineHandler::closeDevices()
+{
 }
 
 /**

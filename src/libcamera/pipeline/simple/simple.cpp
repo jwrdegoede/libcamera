@@ -300,7 +300,7 @@ class SimpleCameraConfiguration : public CameraConfiguration
 public:
 	SimpleCameraConfiguration(Camera *camera);
 
-	Status validate() override;
+	Status validateImpl() override;
 
 	const SimpleCameraData::Configuration *pipeConfig() const
 	{
@@ -974,7 +974,7 @@ static Size adjustSize(const Size &requestedSize, const SizeRange &supportedSize
 
 } /* namespace */
 
-CameraConfiguration::Status SimpleCameraConfiguration::validate()
+CameraConfiguration::Status SimpleCameraConfiguration::validateImpl()
 {
 	SimpleCameraData *data = cameraData();
 	const CameraSensor *sensor = data->sensor_.get();

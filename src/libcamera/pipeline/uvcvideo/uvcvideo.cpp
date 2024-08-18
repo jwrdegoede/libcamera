@@ -63,7 +63,7 @@ class UVCCameraConfiguration : public CameraConfiguration
 public:
 	UVCCameraConfiguration(Camera *camera);
 
-	Status validate() override;
+	Status validateImpl() override;
 
 private:
 	UVCCameraData *cameraData()
@@ -107,7 +107,7 @@ UVCCameraConfiguration::UVCCameraConfiguration(Camera *camera)
 {
 }
 
-CameraConfiguration::Status UVCCameraConfiguration::validate()
+CameraConfiguration::Status UVCCameraConfiguration::validateImpl()
 {
 	UVCCameraData *data = cameraData();
 	Status status = Valid;

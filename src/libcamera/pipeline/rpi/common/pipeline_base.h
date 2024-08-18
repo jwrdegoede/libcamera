@@ -242,11 +242,11 @@ public:
 	}
 
 	CameraConfiguration::Status validateColorSpaces(ColorSpaceFlags flags);
-	Status validate() override;
+	Status validateImpl() override;
 
 	/* Cache the combinedTransform_ that will be applied to the sensor */
 	Transform combinedTransform_;
-	/* The sensor format computed in validate() */
+	/* The sensor format computed in validateImpl() */
 	V4L2SubdeviceFormat sensorFormat_;
 
 	struct StreamParams {

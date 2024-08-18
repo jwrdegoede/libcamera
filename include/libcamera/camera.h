@@ -72,7 +72,7 @@ public:
 	virtual ~CameraConfiguration();
 
 	void addConfiguration(const StreamConfiguration &cfg);
-	virtual Status validate() = 0;
+	Status validate();
 
 	StreamConfiguration &at(unsigned int index);
 	const StreamConfiguration &at(unsigned int index) const;
@@ -106,6 +106,7 @@ protected:
 
 	using ColorSpaceFlags = Flags<ColorSpaceFlag>;
 
+	virtual Status validateImpl() = 0;
 	Status validateColorSpaces(ColorSpaceFlags flags = ColorSpaceFlag::None);
 
 	std::vector<StreamConfiguration> config_;

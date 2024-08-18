@@ -73,7 +73,7 @@ class VimcCameraConfiguration : public CameraConfiguration
 public:
 	VimcCameraConfiguration(VimcCameraData *data);
 
-	Status validate() override;
+	Status validateImpl() override;
 
 private:
 	VimcCameraData *data_;
@@ -124,7 +124,7 @@ VimcCameraConfiguration::VimcCameraConfiguration(VimcCameraData *data)
 {
 }
 
-CameraConfiguration::Status VimcCameraConfiguration::validate()
+CameraConfiguration::Status VimcCameraConfiguration::validateImpl()
 {
 	Status status = Valid;
 

@@ -151,7 +151,7 @@ CameraConfiguration::Status RPiCameraConfiguration::validateColorSpaces([[maybe_
 	return status;
 }
 
-CameraConfiguration::Status RPiCameraConfiguration::validate()
+CameraConfiguration::Status RPiCameraConfiguration::validateImpl()
 {
 	Status status = Valid;
 

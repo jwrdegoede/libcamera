@@ -122,7 +122,7 @@ class RkISP1CameraConfiguration : public CameraConfiguration
 public:
 	RkISP1CameraConfiguration(Camera *camera, RkISP1CameraData *data);
 
-	Status validate() override;
+	Status validateImpl() override;
 
 	const V4L2SubdeviceFormat &sensorFormat() { return sensorFormat_; }
 	const Transform &combinedTransform() { return combinedTransform_; }
@@ -459,7 +459,7 @@ bool RkISP1CameraConfiguration::fitsAllPaths(const StreamConfiguration &cfg)
 	return true;
 }
 
-CameraConfiguration::Status RkISP1CameraConfiguration::validate()
+CameraConfiguration::Status RkISP1CameraConfiguration::validateImpl()
 {
 	const CameraSensor *sensor = data_->sensor_.get();
 	unsigned int pathCount = data_->selfPath_ ? 2 : 1;

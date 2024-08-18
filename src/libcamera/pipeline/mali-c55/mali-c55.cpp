@@ -304,7 +304,7 @@ public:
 	{
 	}
 
-	Status validate() override;
+	Status validateImpl() override;
 
 	V4L2SubdeviceFormat sensorFormat_;
 
@@ -314,7 +314,7 @@ private:
 	const MaliC55CameraData *data_;
 };
 
-CameraConfiguration::Status MaliC55CameraConfiguration::validate()
+CameraConfiguration::Status MaliC55CameraConfiguration::validateImpl()
 {
 	Status status = Valid;
 

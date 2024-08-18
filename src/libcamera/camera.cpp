@@ -341,6 +341,10 @@ void CameraConfiguration::addConfiguration(const StreamConfiguration &cfg)
  * \retval CameraConfiguration::Valid The configuration was already valid and
  * hasn't been adjusted.
  */
+CameraConfiguration::Status CameraConfiguration::validate()
+{
+	return validateImpl();
+}
 
 /**
  * \brief Retrieve a reference to a stream configuration

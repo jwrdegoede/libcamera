@@ -101,7 +101,7 @@ public:
 
 	IPU3CameraConfiguration(Camera *camera);
 
-	Status validate() override;
+	Status validateImpl() override;
 
 	const StreamConfiguration &cio2Format() const { return cio2Configuration_; }
 	const ImgUDevice::PipeConfig imguConfig() const { return pipeConfig_; }
@@ -172,7 +172,7 @@ IPU3CameraConfiguration::IPU3CameraConfiguration(Camera *camera)
 {
 }
 
-CameraConfiguration::Status IPU3CameraConfiguration::validate()
+CameraConfiguration::Status IPU3CameraConfiguration::validateImpl()
 {
 	const IPU3CameraData *data = cameraData();
 	Status status = Valid;
@@ -413,7 +413,7 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 			 * the required frame margin.
 			 *
 			 * \todo Clarify the alignment constraints as explained
-			 * in validate()
+			 * in validateImpl()
 			 */
 			size = sensorResolution.boundedTo(ImgUDevice::kOutputMaxSize)
 					       .shrunkBy({ 1, 1 })
@@ -966,7 +966,7 @@ int PipelineHandlerIPU3::updateControls(IPU3CameraData *data)
 	 *
 	 * Initialize the control use the 'Viewfinder' configuration (1280x720)
 	 * as the pipeline output resolution and the full sensor size as input
-	 * frame (see the todo note in the validate() function about the usage
+	 * frame (see the todo note in the validateImpl() function about the usage
 	 * of the sensor's full frame as ImgU input).
 	 */
 
@@ -986,7 +986,7 @@ int PipelineHandlerIPU3::updateControls(IPU3CameraData *data)
 	 *
 	 * \todo This implementation is based on the same assumptions about the
 	 * ImgU pipeline configuration described in then viewfinder and main
-	 * output sizes calculation in the validate() function.
+	 * output sizes calculation in the validateImpl() function.
 	 */
 
 	/* The strictly smaller size than the sensor resolution, aligned to margins. */

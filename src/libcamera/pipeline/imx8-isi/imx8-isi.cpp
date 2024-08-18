@@ -81,7 +81,7 @@ public:
 	{
 	}
 
-	Status validate() override;
+	Status validateImpl() override;
 
 	static const std::map<PixelFormat, unsigned int> formatsMap_;
 
@@ -488,7 +488,7 @@ ISICameraConfiguration::validateYuv(std::set<Stream *> &availableStreams,
 	return status;
 }
 
-CameraConfiguration::Status ISICameraConfiguration::validate()
+CameraConfiguration::Status ISICameraConfiguration::validateImpl()
 {
 	Status status = Valid;
 

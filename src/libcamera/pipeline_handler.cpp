@@ -163,20 +163,22 @@ MediaDevice *PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
  * has already acquired it
  * \sa release()
  */
-bool PipelineHandler::acquire()
+bool PipelineHandler::acquire(Camera *camera)
 {
 	MutexLocker locker(lock_);
 
-	if (useCount_) {
-		++useCount_;
-		return true;
+	if (useCount_ == 0) {
+		for (std::shared_ptr<MediaDevice> &media : mediaDevices_) {
+			if (!media->lock()) {
+				unlockMediaDevices();
+				return false;
+			}
+		}
 	}
 
-	for (std::shared_ptr<MediaDevice> &media : mediaDevices_) {
-		if (!media->lock()) {
-			unlockMediaDevices();
-			return false;
-		}
+	if (!acquireDevice(camera)) {
+		unlockMediaDevices();
+		return false;
 	}
 
 	++useCount_;
@@ -205,12 +207,33 @@ void PipelineHandler::release(Camera *camera)
 
 	ASSERT(useCount_);
 
+	releaseDevice(camera);
+
 	if (useCount_ == 1)
 		unlockMediaDevices();
 
-	releaseDevice(camera);
-
 	--useCount_;
+}
+
+/**
+ * \brief Acquire resources associated with this camera
+ * \param[in] camera The camera for which to acquire resources
+ *
+ * Pipeline handlers may override this in order to get resources
+ * such as open /dev nodes are allocate buffers when a camera is
+ * acquired.
+ *
+ * Note this is called once for every camera which is acquired,
+ * so if there are shared resources the pipeline handler must take
+ * care to not release them until releaseDevice() has been called for
+ * all previously acquired cameras.
+ *
+ * \return True on success, false on failure.
+ * \sa releaseDevice()
+ */
+bool PipelineHandler::acquireDevice([[maybe_unused]] Camera *camera)
+{
+	return true;
 }
 
 /**
@@ -219,6 +242,8 @@ void PipelineHandler::release(Camera *camera)
  *
  * Pipeline handlers may override this in order to perform cleanup operations
  * when a camera is released, such as freeing memory.
+ *
+ * \sa acquireDevice()
  */
 void PipelineHandler::releaseDevice([[maybe_unused]] Camera *camera)
 {

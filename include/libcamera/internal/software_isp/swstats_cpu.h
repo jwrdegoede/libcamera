@@ -71,6 +71,7 @@ public:
 private:
 	using statsProcessFn = void (SwStatsCpu::*)(const uint8_t *src[]);
 	using processFrameFn = void (SwStatsCpu::*)(MappedFrameBuffer &in);
+	using finishFrameFn = void (SwStatsCpu::*)();
 
 	int setupStandardBayerOrder(BayerFormat::Order order);
 	/* Bayer 8 bpp unpacked */
@@ -82,10 +83,15 @@ private:
 	/* Bayer 10 bpp packed */
 	void statsBGGR10PLine0(const uint8_t *src[]);
 	void statsGBRG10PLine0(const uint8_t *src[]);
+	/* YUV420 3 planes */
+	void statsYUV420Line0(const uint8_t *src[]);
 
 	void processBayerFrame2(MappedFrameBuffer &in);
+	void processYUV420Frame(MappedFrameBuffer &in);
+	void finishYUV420Frame();
 
 	processFrameFn processFrame_;
+	finishFrameFn finishFrame_;
 
 	/* Variables set by configure(), used every line */
 	statsProcessFn stats0_;

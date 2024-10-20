@@ -13,6 +13,7 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/formats.h>
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
@@ -288,6 +289,40 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
+void SwStatsCpu::statsYUV420Line0(const uint8_t *src[])
+{
+	uint64_t sumY = 0;
+	uint64_t sumU = 0;
+	uint64_t sumV = 0;
+	uint8_t y, u, v;
+
+	/* Adjust src[] for starting at window_.x */
+	src[0] += window_.x;
+	src[1] += window_.x / 2;
+	src[2] += window_.x / 2;
+
+	/* x += 4 sample every other 2x2 block */
+	for (int x = 0; x < (int)window_.width; x += 4) {
+		/*
+		 * Take y from the top left corner of the 2x2 block instead
+		 * of averaging 4 y-s.
+		 */
+		y = src[0][x];
+		u = src[1][x];
+		v = src[2][x];
+
+		sumY += y;
+		sumU += u;
+		sumV += v;
+
+		stats_.yHistogram[y * SwIspStats::kYHistogramSize / 256]++;
+	}
+
+	stats_.sumR_ += sumY;
+	stats_.sumG_ += sumU;
+	stats_.sumB_ += sumV;
+}
+
 /**
  * \brief Reset state to start statistics gathering for a new frame
  *
@@ -313,6 +348,9 @@ void SwStatsCpu::startFrame(void)
  */
 void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
 {
+	if (finishFrame_)
+		(this->*finishFrame_)();
+
 	*sharedStats_ = stats_;
 	statsReady.emit(frame, bufferId);
 }
@@ -362,6 +400,20 @@ int SwStatsCpu::setupStandardBayerOrder(BayerFormat::Order order)
 int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 {
 	stride_ = inputCfg.stride;
+	finishFrame_ = NULL;
+
+	if (inputCfg.pixelFormat == formats::YUV420) {
+		patternSize_.height = 2;
+		patternSize_.width = 2;
+		/* Skip every 3th and 4th line, sample every other 2x2 block */
+		ySkipMask_ = 0x02;
+		xShift_ = 0;
+		swapLines_ = false;
+		stats0_ = &SwStatsCpu::statsYUV420Line0;
+		processFrame_ = &SwStatsCpu::processYUV420Frame;
+		finishFrame_ = &SwStatsCpu::finishYUV420Frame;
+		return 0;
+	}
 
 	BayerFormat bayerFormat =
 		BayerFormat::fromPixelFormat(inputCfg.pixelFormat);
@@ -428,6 +480,43 @@ void SwStatsCpu::setWindow(const Rectangle &window)
 	window_.width -= xShift_;
 	window_.width &= ~(patternSize_.width - 1);
 	window_.height &= ~(patternSize_.height - 1);
+}
+
+void SwStatsCpu::processYUV420Frame(MappedFrameBuffer &in)
+{
+	const uint8_t *linePointers[3];
+
+	linePointers[0] = in.planes()[0].data();
+	linePointers[1] = in.planes()[1].data();
+	linePointers[2] = in.planes()[2].data();
+
+	/* Adjust linePointers for starting at window_.y */
+	linePointers[0] += window_.y * stride_;
+	linePointers[1] += window_.y * stride_ / 4;
+	linePointers[2] += window_.y * stride_ / 4;
+
+	for (unsigned int y = 0; y < window_.height; y += 2) {
+		if (!(y & ySkipMask_))
+			(this->*stats0_)(linePointers);
+
+		linePointers[0] += stride_ * 2;
+		linePointers[1] += stride_ / 2;
+		linePointers[2] += stride_ / 2;
+	}
+}
+
+void SwStatsCpu::finishYUV420Frame()
+{
+	/* sumR_ / G_ / B_ contain Y / U / V sums convert this */
+	double divider = (uint64_t)window_.width * window_.height * 256 / 16;
+	double Y = (double)stats_.sumR_ / divider;
+	/* U and V 0 - 255 values represent -128 - 127 range */
+	double U = (double)stats_.sumG_ / divider - 0.5;
+	double V = (double)stats_.sumB_ / divider - 0.5;
+
+	stats_.sumR_ = (Y + 1.140 * V) * divider;
+	stats_.sumG_ = (Y - 0.395 * U - 0.581 * V) * divider;
+	stats_.sumB_ = (Y + 2.032 * U) * divider;
 }
 
 void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)

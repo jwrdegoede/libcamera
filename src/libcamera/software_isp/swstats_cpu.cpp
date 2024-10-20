@@ -352,6 +352,41 @@ void SwStatsCpu::statsRGBIR10Line2(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
+void SwStatsCpu::statsYUV420Line0(const uint8_t *src[])
+{
+	uint64_t sumY = 0;
+	uint64_t sumU = 0;
+	uint64_t sumV = 0;
+	uint8_t y, u, v;
+
+	/* Adjust src[] for starting at window_.x */
+	src[0] += window_.x;
+	src[1] += window_.x / 2;
+	src[2] += window_.x / 2;
+
+	/* x += 4 sample every other 2x2 block */
+	for (int x = 0; x < (int)window_.width; x += 4) {
+		/*
+		 * Take y from the top left corner of the 2x2 block instead
+		 * of averaging 4 y-s.
+		 */
+		y = src[0][0];
+		u = src[1][0];
+		v = src[2][0];
+
+		sumY += y;
+		sumU += u;
+		sumV += v;
+
+		stats_.yHistogram[y * SwIspStats::kYHistogramSize / 256]++;
+	}
+
+	// FIXME
+	stats_.sumR_ += sumY;
+	stats_.sumG_ += sumU;
+	stats_.sumB_ += sumV;
+}
+
 /**
  * \brief Reset state to start statistics gathering for a new frame
  *
@@ -509,6 +544,29 @@ void SwStatsCpu::setWindow(const Rectangle &window)
 	window_.width -= xShift_;
 	window_.width &= ~(patternSize_.width - 1);
 	window_.height &= ~(patternSize_.height - 1);
+}
+
+void SwStatsCpu::processYUV420Frame(MappedFrameBuffer &in)
+{
+	const uint8_t *linePointers[3];
+
+	linePointers[0] = in.planes()[0].data();
+	linePointers[1] = in.planes()[1].data();
+	linePointers[2] = in.planes()[2].data();
+
+	/* Adjust linePointers for starting at window_.y */
+	linePointers[0] += window_.y * stride_;
+	linePointers[1] += window_.y * stride_ / 4;
+	linePointers[2] += window_.y * stride_ / 4;
+
+	for (unsigned int y = 0; y < window_.height; y += 2) {
+		if (!(y & ySkipMask_))
+			(this->*stats0_)(linePointers);
+
+		linePointers[0] += stride_ * 2;
+		linePointers[1] += stride_ / 2;
+		linePointers[2] += stride_ / 2;
+	}
 }
 
 void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)

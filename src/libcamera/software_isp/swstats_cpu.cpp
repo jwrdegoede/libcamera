@@ -415,6 +415,15 @@ void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
 	if (finishFrame_)
 		(this->*finishFrame_)();
 
+#if 0
+	for (unsigned int i = 0; i < SwIspStats::kYHistogramSize; i++)
+		LOG(SwStatsCpu, Info) << "Yhist " << i << " " << stats_.yHistogram[i];
+
+	LOG(SwStatsCpu, Info) << "sumR " << stats_.sumR_;
+	LOG(SwStatsCpu, Info) << "sumG " << stats_.sumG_;
+	LOG(SwStatsCpu, Info) << "sumB " << stats_.sumB_;
+#endif
+
 	*sharedStats_ = stats_;
 	statsReady.emit(frame, bufferId);
 }

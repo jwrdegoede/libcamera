@@ -36,7 +36,7 @@ public:
 
 	IPAInterface *createInterface();
 
-	bool match(PipelineHandler *pipe,
+	bool match(const char *pipelineName,
 		   uint32_t minVersion, uint32_t maxVersion) const;
 
 protected:

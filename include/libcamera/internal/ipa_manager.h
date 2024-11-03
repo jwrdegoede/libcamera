@@ -33,11 +33,16 @@ public:
 	template<typename T>
 	static std::unique_ptr<T> createIPA(PipelineHandler *pipe,
 					    uint32_t minVersion,
-					    uint32_t maxVersion)
+					    uint32_t maxVersion,
+					    const char *ipaName = NULL)
 	{
 		CameraManager *cm = pipe->cameraManager();
 		IPAManager *self = cm->_d()->ipaManager();
-		IPAModule *m = self->module(pipe, minVersion, maxVersion);
+
+		if (!ipaName)
+			ipaName = pipe->name();
+
+		IPAModule *m = self->module(ipaName, minVersion, maxVersion);
 		if (!m)
 			return nullptr;
 
@@ -62,7 +67,7 @@ private:
 		      std::vector<std::string> &files);
 	unsigned int addDir(const char *libDir, unsigned int maxDepth = 0);
 
-	IPAModule *module(PipelineHandler *pipe, uint32_t minVersion,
+	IPAModule *module(const char *pipelineName, uint32_t minVersion,
 			  uint32_t maxVersion);
 
 	bool isSignatureValid(IPAModule *ipa) const;

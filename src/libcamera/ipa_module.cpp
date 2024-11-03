@@ -466,18 +466,25 @@ IPAInterface *IPAModule::createInterface()
  * \param[in] pipe Pipeline handler to match with
  * \param[in] minVersion Minimum acceptable version of IPA module
  * \param[in] maxVersion Maximum acceptable version of IPA module
+ * \param[in] ipaName If set match IPA module by this name instead of by pipe
  *
  * This function checks if this IPA module matches the \a pipe pipeline handler,
- * and the input version range.
+ * and the input version range. If \a ipaName is non-null then the IPA module
+ * name is matched against \a ipaName instead of matching \a pipe.
  *
  * \return True if the pipeline handler matches the IPA module, or false otherwise
  */
-bool IPAModule::match(PipelineHandler *pipe,
-		      uint32_t minVersion, uint32_t maxVersion) const
+bool IPAModule::match(PipelineHandler *pipe, uint32_t minVersion,
+		      uint32_t maxVersion, const char *ipaName) const
 {
-	return info_.pipelineVersion >= minVersion &&
-	       info_.pipelineVersion <= maxVersion &&
-	       !strcmp(info_.pipelineName, pipe->name());
+	if (info_.pipelineVersion < minVersion ||
+	    info_.pipelineVersion > maxVersion)
+		return false;
+
+	if (ipaName)
+		return !strcmp(info_.name, ipaName);
+	else
+		return !strcmp(info_.pipelineName, pipe->name());
 }
 
 std::string IPAModule::logPrefix() const

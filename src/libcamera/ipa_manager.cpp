@@ -240,12 +240,13 @@ unsigned int IPAManager::addDir(const char *libDir, unsigned int maxDepth)
  * \param[in] pipe The pipeline handler
  * \param[in] minVersion Minimum acceptable version of IPA module
  * \param[in] maxVersion Maximum acceptable version of IPA module
+ * \param[in] ipaName If set match IPA module by this name instead of by pipe
  */
 IPAModule *IPAManager::module(PipelineHandler *pipe, uint32_t minVersion,
-			      uint32_t maxVersion)
+			      uint32_t maxVersion, const char *ipaName)
 {
 	for (const auto &module : modules_) {
-		if (module->match(pipe, minVersion, maxVersion))
+		if (module->match(pipe, minVersion, maxVersion, ipaName))
 			return module.get();
 	}
 
@@ -258,6 +259,7 @@ IPAModule *IPAManager::module(PipelineHandler *pipe, uint32_t minVersion,
  * \param[in] pipe The pipeline handler that wants a matching IPA proxy
  * \param[in] minVersion Minimum acceptable version of IPA module
  * \param[in] maxVersion Maximum acceptable version of IPA module
+ * \param[in] ipaName If set match IPA module by this name instead of by pipe
  *
  * \return A newly created IPA proxy, or nullptr if no matching IPA module is
  * found or if the IPA proxy fails to initialize

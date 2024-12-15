@@ -50,6 +50,7 @@
 #include <libcamera/ipa/soft_ipa_proxy.h>
 
 #include "libcamera/internal/camera.h"
+#include "libcamera/internal/camera_lens.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
@@ -75,7 +76,8 @@ public:
 	int init(MediaEntity *sensor);
 	void bufferReady(FrameBuffer *buffer);
 	void statsReady(uint32_t frame, uint32_t bufferId);
-	void setSensorControls(const ControlList &sensorControls);
+	void setSensorControls(const ControlList &sensorControls,
+			       const ControlList &lensControls);
 
 	/* This is owned by AtomispPipelineHandler and shared by the cameras */
 	V4L2VideoDevice *video_;
@@ -265,6 +267,10 @@ int AtomispPipelineHandler::configure(Camera *camera, CameraConfiguration *confi
 
 	ipa::soft::IPAConfigInfo configInfo;
 	configInfo.sensorControls = data->sensor_->controls();
+
+	CameraLens *lens = data->sensor_->focusLens();
+	if (lens)
+		configInfo.lensControls = lens->controls();
 
 	ret = data->ipa_->configure(configInfo);
 	if (ret)
@@ -572,11 +578,25 @@ void AtomispCameraData::statsReady(uint32_t frame, uint32_t bufferId)
 	ipa_->processStats(frame, bufferId, delayedCtrls_->get(frame));
 }
 
-void AtomispCameraData::setSensorControls(const ControlList &sensorControls)
+void AtomispCameraData::setSensorControls(const ControlList &sensorControls,
+					  const ControlList &lensControls)
 {
 	delayedCtrls_->push(sensorControls);
+	/*
+	 * \todo call delayedCtrls_->applyControls(seq) from "Atom ISP"
+	 * subdev V4L2Device::frameStart signal, note needs to also call
+	 * setFrameStartEnabled().
+	 */
 	ControlList ctrls(sensorControls);
 	sensor_->setControls(&ctrls);
+
+	CameraLens *focusLens = sensor_->focusLens();
+	if (!focusLens || !lensControls.contains(V4L2_CID_FOCUS_ABSOLUTE))
+		return;
+
+	const ControlValue &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
+
+	focusLens->setFocusPosition(focusValue.get<int32_t>());
 }
 
 REGISTER_PIPELINE_HANDLER(AtomispPipelineHandler, "atomisp")

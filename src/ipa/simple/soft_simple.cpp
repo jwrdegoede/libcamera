@@ -241,6 +241,9 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 		context_.configuration.agc.againMinStep = 1.0;
 	}
 
+	// HACK hardcode focus at 500 for now
+	context_.activeState.af.focus = 500;
+
 	for (auto const &algo : algorithms()) {
 		int ret = algo->configure(context_, configInfo);
 		if (ret)
@@ -319,6 +322,7 @@ void IPASoftSimple::processStats(const uint32_t frame,
 		  static_cast<int32_t>(camHelper_ ? camHelper_->gainCode(againNew) : againNew));
 
 	ControlList lensCtrls(lensCtrls_);
+	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
 
 	setSensorControls.emit(ctrls, lensCtrls);
 }

@@ -906,6 +906,13 @@ void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
 void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
 {
 	delayedCtrls_->push(sensorControls);
+	/*
+	 * Directly apply controls now since there is no frameStart signal
+	 * handler to call delayedCtrls_->applyControls(seq).
+	 * \todo it would be better to call delayedCtrls_->applyControls(seq)
+	 * from the CSI2 receiver's V4L2Device::frameStart signal if
+	 * the platform provides it.
+	 */
 	ControlList ctrls(sensorControls);
 	sensor_->setControls(&ctrls);
 }
@@ -1293,8 +1300,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	data->video_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
 
 	StreamConfiguration inputCfg;
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
@@ -1359,6 +1364,8 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		releasePipeline(data);
 		return ret;
 	}
+
+	data->delayedCtrls_->reset();
 
 	video->bufferReady.connect(data, &SimpleCameraData::bufferReady);
 

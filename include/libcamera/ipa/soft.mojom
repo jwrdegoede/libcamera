@@ -10,6 +10,7 @@ import "include/libcamera/ipa/core.mojom";
 
 struct IPAConfigInfo {
 	libcamera.ControlInfoMap sensorControls;
+	libcamera.ControlInfoMap lensControls;
 };
 
 interface IPASoftInterface {
@@ -31,6 +32,7 @@ interface IPASoftInterface {
 };
 
 interface IPASoftEventInterface {
-	setSensorControls(libcamera.ControlList sensorControls);
+	setSensorControls(libcamera.ControlList sensorControls,
+			  libcamera.ControlList lensControls);
 	setIspParams();
 };

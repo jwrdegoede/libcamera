@@ -71,6 +71,7 @@ private:
 	SwIspStats *stats_;
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 	ControlInfoMap sensorInfoMap_;
+	ControlInfoMap lensCtrls_;
 
 	/* Local parameter storage */
 	struct IPAContext context_;
@@ -183,6 +184,8 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 
 	const ControlInfo &exposureInfo = sensorInfoMap_.find(V4L2_CID_EXPOSURE)->second;
 	const ControlInfo &gainInfo = sensorInfoMap_.find(V4L2_CID_ANALOGUE_GAIN)->second;
+
+	lensCtrls_ = configInfo.lensControls;
 
 	/* Clear the IPA context before the streaming session. */
 	context_.configuration = {};
@@ -315,7 +318,9 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	ctrls.set(V4L2_CID_ANALOGUE_GAIN,
 		  static_cast<int32_t>(camHelper_ ? camHelper_->gainCode(againNew) : againNew));
 
-	setSensorControls.emit(ctrls);
+	ControlList lensCtrls(lensCtrls_);
+
+	setSensorControls.emit(ctrls, lensCtrls);
 }
 
 std::string IPASoftSimple::logPrefix() const

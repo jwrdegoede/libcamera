@@ -57,7 +57,7 @@
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
-#include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swisp_params.h"
 #include "libcamera/internal/software_isp/swstats_cpu.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -85,7 +85,7 @@ public:
 	std::unique_ptr<DelayedControls> delayedCtrls_;
 	std::unique_ptr<SwStatsCpu> stats_;
 	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;
-	SharedMemObject<DebayerParams> debayerParams_;
+	SharedMemObject<SwIspParams> params_;
 	Stream stream_;
 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
 	MediaLink *csiReceiverIspLink_;
@@ -461,8 +461,8 @@ int AtomispCameraData::init(MediaEntity *sensor)
 	if (ret)
 		return ret;
 
-	debayerParams_ = SharedMemObject<DebayerParams>("debayer_params");
-	if (!debayerParams_) {
+	params_ = SharedMemObject<SwIspParams>("debayer_params");
+	if (!params_) {
 		LOG(Atomisp, Error) << "Failed to create shared memory for parameters";
 		return -ENOMEM;
 	}
@@ -488,7 +488,7 @@ int AtomispCameraData::init(MediaEntity *sensor)
 					"uncalibrated_atomisp.yaml");
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor_->model() },
-			 stats_->getStatsFD(), debayerParams_.fd(),
+			 stats_->getStatsFD(), params_.fd(),
 			 sensor_->controls());
 	if (ret) {
 		LOG(Atomisp, Error) << "IPA init failed";

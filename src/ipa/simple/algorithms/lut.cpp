@@ -47,7 +47,7 @@ void Lut::updateGammaTable(IPAContext &context)
 void Lut::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  [[maybe_unused]] IPAFrameContext &frameContext,
-		  [[maybe_unused]] DebayerParams *params)
+		  [[maybe_unused]] SwIspParams *params)
 {
 	/*
 	 * Update the gamma table if needed. This means if black level changes
@@ -62,8 +62,8 @@ void Lut::prepare(IPAContext &context,
 	auto &gammaTable = context.activeState.gamma.gammaTable;
 	const unsigned int gammaTableSize = gammaTable.size();
 
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-		const double div = static_cast<double>(DebayerParams::kRGBLookupSize) /
+	for (unsigned int i = 0; i < SwIspParams::kRGBLookupSize; i++) {
+		const double div = static_cast<double>(SwIspParams::kRGBLookupSize) /
 				   gammaTableSize;
 		/* Apply gamma after gain! */
 		unsigned int idx;

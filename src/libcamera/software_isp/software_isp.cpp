@@ -17,7 +17,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/ipa_manager.h"
-#include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swisp_params.h"
 
 #include "debayer_cpu.h"
 
@@ -68,7 +68,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
 		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
 {
 	/*
-	 * debayerParams_ must be initialized because the initial value is used for
+	 * params_ must be initialized because the initial value is used for
 	 * the first two frames, i.e. until stats processing starts providing its
 	 * own parameters.
 	 *
@@ -78,10 +78,10 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
 	std::array<uint8_t, 256> gammaTable;
 	for (unsigned int i = 0; i < 256; i++)
 		gammaTable[i] = UINT8_MAX * std::pow(i / 256.0, 0.5);
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-		debayerParams_.red[i] = gammaTable[i];
-		debayerParams_.green[i] = gammaTable[i];
-		debayerParams_.blue[i] = gammaTable[i];
+	for (unsigned int i = 0; i < SwIspParams::kRGBLookupSize; i++) {
+		params_.red[i] = gammaTable[i];
+		params_.green[i] = gammaTable[i];
+		params_.blue[i] = gammaTable[i];
 	}
 
 	if (!dmaHeap_.isValid()) {
@@ -89,7 +89,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
 		return;
 	}
 
-	sharedParams_ = SharedMemObject<DebayerParams>("softIsp_params");
+	sharedParams_ = SharedMemObject<SwIspParams>("softIsp_params");
 	if (!sharedParams_) {
 		LOG(SoftwareIsp, Error) << "Failed to create shared memory for parameters";
 		return;
@@ -353,12 +353,12 @@ void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *outpu
 {
 	ipa_->fillParamsBuffer(frame);
 	debayer_->invokeMethod(&DebayerCpu::process,
-			       ConnectionTypeQueued, frame, input, output, debayerParams_);
+			       ConnectionTypeQueued, frame, input, output, params_);
 }
 
 void SoftwareIsp::saveIspParams()
 {
-	debayerParams_ = *sharedParams_;
+	params_ = *sharedParams_;
 }
 
 void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls,

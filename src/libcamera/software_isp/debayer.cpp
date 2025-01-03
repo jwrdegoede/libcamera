@@ -14,32 +14,32 @@
 namespace libcamera {
 
 /**
- * \struct DebayerParams
- * \brief Struct to hold the debayer parameters.
+ * \struct SwIspParams
+ * \brief Struct to hold the software ISP parameters.
  */
 
 /**
- * \var DebayerParams::kRGBLookupSize
+ * \var SwIspParams::kRGBLookupSize
  * \brief Size of a color lookup table
  */
 
 /**
- * \typedef DebayerParams::ColorLookupTable
+ * \typedef SwIspParams::ColorLookupTable
  * \brief Type of the lookup tables for red, green, blue values
  */
 
 /**
- * \var DebayerParams::red
+ * \var SwIspParams::red
  * \brief Lookup table for red color, mapping input values to output values
  */
 
 /**
- * \var DebayerParams::green
+ * \var SwIspParams::green
  * \brief Lookup table for green color, mapping input values to output values
  */
 
 /**
- * \var DebayerParams::blue
+ * \var SwIspParams::blue
  * \brief Lookup table for blue color, mapping input values to output values
  */
 
@@ -94,14 +94,14 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn void Debayer::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+ * \fn void Debayer::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, SwIspParams params)
  * \brief Process the bayer data into the requested format
  * \param[in] frame The frame number
  * \param[in] input The input buffer
  * \param[in] output The output buffer
  * \param[in] params The parameters to be used in debayering
  *
- * \note DebayerParams is passed by value deliberately so that a copy is passed
+ * \note SwIspParams is passed by value deliberately so that a copy is passed
  * when this is run in another thread by invokeMethod().
  */
 

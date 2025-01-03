@@ -50,7 +50,7 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	enableInputMemcpy_ = true;
 
 	/* Initialize color lookup tables */
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++)
+	for (unsigned int i = 0; i < SwIspParams::kRGBLookupSize; i++)
 		red_[i] = green_[i] = blue_[i] = i;
 }
 
@@ -738,7 +738,7 @@ void syncBufferForCPU(FrameBuffer *buffer, uint64_t syncFlags)
 
 } /* namespace */
 
-void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, SwIspParams params)
 {
 	bench_.startFrame();
 

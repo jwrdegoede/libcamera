@@ -21,7 +21,7 @@
 #include <libcamera/ipa/ipa_module_info.h>
 #include <libcamera/ipa/soft_ipa_interface.h>
 
-#include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swisp_params.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
 #include "libcamera/internal/yaml_parser.h"
 
@@ -67,7 +67,7 @@ protected:
 private:
 	void updateExposure(double exposureMSV);
 
-	DebayerParams *params_;
+	SwIspParams *params_;
 	SwIspStats *stats_;
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 	ControlInfoMap sensorInfoMap_;
@@ -82,7 +82,7 @@ IPASoftSimple::~IPASoftSimple()
 	if (stats_)
 		munmap(stats_, sizeof(SwIspStats));
 	if (params_)
-		munmap(params_, sizeof(DebayerParams));
+		munmap(params_, sizeof(SwIspParams));
 }
 
 int IPASoftSimple::init(const IPASettings &settings,
@@ -138,14 +138,14 @@ int IPASoftSimple::init(const IPASettings &settings,
 	}
 
 	{
-		void *mem = mmap(nullptr, sizeof(DebayerParams), PROT_WRITE,
+		void *mem = mmap(nullptr, sizeof(SwIspParams), PROT_WRITE,
 				 MAP_SHARED, fdParams.get(), 0);
 		if (mem == MAP_FAILED) {
 			LOG(IPASoft, Error) << "Unable to map Parameters";
 			return -errno;
 		}
 
-		params_ = static_cast<DebayerParams *>(mem);
+		params_ = static_cast<SwIspParams *>(mem);
 	}
 
 	{

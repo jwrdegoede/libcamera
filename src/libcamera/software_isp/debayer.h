@@ -19,7 +19,7 @@
 #include <libcamera/geometry.h>
 #include <libcamera/stream.h>
 
-#include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swisp_params.h"
 
 namespace libcamera {
 
@@ -40,7 +40,7 @@ public:
 	virtual std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) = 0;
 
-	virtual void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params) = 0;
+	virtual void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, SwIspParams params) = 0;
 
 	virtual SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) = 0;
 

@@ -37,7 +37,7 @@ public:
 	std::vector<PixelFormat> formats(PixelFormat input);
 	std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
-	void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params);
+	void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, SwIspParams params);
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
 
 	/**
@@ -136,9 +136,9 @@ private:
 	/* Max. supported Bayer pattern height is 4, debayering this requires 5 lines */
 	static constexpr unsigned int kMaxLineBuffers = 5;
 
-	DebayerParams::ColorLookupTable red_;
-	DebayerParams::ColorLookupTable green_;
-	DebayerParams::ColorLookupTable blue_;
+	SwIspParams::ColorLookupTable red_;
+	SwIspParams::ColorLookupTable green_;
+	SwIspParams::ColorLookupTable blue_;
 	debayerFn debayer0_;
 	debayerFn debayer1_;
 	debayerFn debayer2_;

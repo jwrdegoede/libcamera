@@ -23,7 +23,7 @@ public:
 	void prepare(IPAContext &context,
 		     const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     DebayerParams *params) override;
+		     SwIspParams *params) override;
 
 private:
 	void updateGammaTable(IPAContext &context);

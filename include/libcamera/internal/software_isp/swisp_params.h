@@ -5,7 +5,7 @@
  * Authors:
  * Hans de Goede <hdegoede@redhat.com>
  *
- * DebayerParams header
+ * SwIspParams header
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 
 namespace libcamera {
 
-struct DebayerParams {
+struct SwIspParams {
 	static constexpr unsigned int kRGBLookupSize = 256;
 
 	using ColorLookupTable = std::array<uint8_t, kRGBLookupSize>;

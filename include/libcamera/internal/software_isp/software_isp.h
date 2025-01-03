@@ -31,7 +31,7 @@
 #include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/shared_mem_object.h"
-#include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swisp_params.h"
 
 namespace libcamera {
 
@@ -94,8 +94,8 @@ private:
 
 	std::unique_ptr<DebayerCpu> debayer_;
 	Thread ispWorkerThread_;
-	SharedMemObject<DebayerParams> sharedParams_;
-	DebayerParams debayerParams_;
+	SharedMemObject<SwIspParams> sharedParams_;
+	SwIspParams params_;
 	DmaBufAllocator dmaHeap_;
 
 	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;

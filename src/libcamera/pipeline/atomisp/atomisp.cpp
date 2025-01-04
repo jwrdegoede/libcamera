@@ -78,6 +78,7 @@ public:
 	void statsReady(uint32_t frame, uint32_t bufferId);
 	void setSensorControls(const ControlList &sensorControls,
 			       const ControlList &lensControls);
+	void saveIspParams();
 
 	/* This is owned by AtomispPipelineHandler and shared by the cameras */
 	V4L2VideoDevice *video_;
@@ -89,6 +90,7 @@ public:
 	Stream stream_;
 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
 	MediaLink *csiReceiverIspLink_;
+	bool wantSharpness_;
 };
 
 class AtomispCameraConfiguration : public CameraConfiguration
@@ -547,6 +549,7 @@ int AtomispCameraData::init(MediaEntity *sensor)
 
 	stats_->statsReady.connect(this, &AtomispCameraData::statsReady);
 	ipa_->setSensorControls.connect(this, &AtomispCameraData::setSensorControls);
+	ipa_->setIspParams.connect(this, &AtomispCameraData::saveIspParams);
 
 	return 0;
 }
@@ -563,7 +566,7 @@ void AtomispCameraData::bufferReady(FrameBuffer *buffer)
 		 *
 		 * \todo Pass real bufferId once stats buffer passing is changed.
 		 */
-		stats_->processFrame(request->sequence(), 0, buffer);
+		stats_->processFrame(request->sequence(), 0, buffer, wantSharpness_);
 
 		request->metadata().set(controls::SensorTimestamp,
 					buffer->metadata().timestamp);
@@ -597,6 +600,11 @@ void AtomispCameraData::setSensorControls(const ControlList &sensorControls,
 	const ControlValue &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
 
 	focusLens->setFocusPosition(focusValue.get<int32_t>());
+}
+
+void AtomispCameraData::saveIspParams()
+{
+	wantSharpness_ = params_->wantSharpness;
 }
 
 REGISTER_PIPELINE_HANDLER(AtomispPipelineHandler, "atomisp")

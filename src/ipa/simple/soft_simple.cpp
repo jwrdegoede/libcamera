@@ -280,6 +280,10 @@ void IPASoftSimple::fillParamsBuffer(const uint32_t frame)
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	for (auto const &algo : algorithms())
 		algo->prepare(context_, frame, frameContext, params_);
+		
+	// hack should ne done by autofocus algo prepare()
+	params_->wantSharpness = true;
+	
 	setIspParams.emit();
 }
 

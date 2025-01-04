@@ -46,7 +46,7 @@ public:
 	void setWindow(const Rectangle &window);
 	void startFrame();
 	void finishFrame(uint32_t frame, uint32_t bufferId);
-	void processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input);
+	void processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input, bool wantSharpness);
 
 	void processLine0(unsigned int y, const uint8_t *src[])
 	{

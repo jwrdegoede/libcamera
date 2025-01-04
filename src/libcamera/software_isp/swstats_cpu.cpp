@@ -546,10 +546,12 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
  * \param[in] frame The frame number
  * \param[in] bufferId ID of the statistics buffer
  * \param[in] input The frame to process
+ * \param[in] wantSharpness Set if sharpness information should be provided
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input)
+void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input,
+			      bool wantSharpness [[maybe_unused]])
 {
 	bench_.startFrame();
 	startFrame();

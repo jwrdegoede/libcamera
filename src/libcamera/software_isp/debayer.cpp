@@ -44,6 +44,15 @@ namespace libcamera {
  */
 
 /**
+ * \var SwIspParams::wantSharpness
+ * \brief Indicates if SwIspStats should provide sharpness information
+ *
+ * The IPA sets this to true when the SwIspStats for the next frame(s) should
+ * provide sharpness information. Sharpness information is optional because
+ * computing it is quite CPU intensive.
+ */
+
+/**
  * \class Debayer
  * \brief Base debayering class
  *

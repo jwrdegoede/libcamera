@@ -23,6 +23,7 @@ struct SwIspParams {
 	ColorLookupTable red;
 	ColorLookupTable green;
 	ColorLookupTable blue;
+	bool wantSharpness;
 };
 
 } /* namespace libcamera */

@@ -75,6 +75,8 @@ private:
 
 	/* Local parameter storage */
 	struct IPAContext context_;
+
+	bool hasLensCtrl = false;
 };
 
 IPASoftSimple::~IPASoftSimple()
@@ -192,21 +194,28 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 
 	lensCtrls_ = configInfo.lensControls;
 
+	if (lensCtrls_.empty()) {
+		hasLensCtrl = false;
+	} else {
+		hasLensCtrl = true;
+	}
+
 	const ControlInfo &lensInfo = lensCtrls_.find(V4L2_CID_FOCUS_ABSOLUTE)->second;
 
 	/* Clear the IPA context before the streaming session. */
 	context_.configuration = {};
 	context_.activeState = {};
 	context_.frameContexts.clear();
+	if (hasLensCtrl) {
+		context_.configuration.af.afocusMax = lensInfo.max().get<int32_t>();
 
-	context_.configuration.af.afocusMax = lensInfo.max().get<int32_t>();
-
-	if (context_.configuration.af.afocusMax < 512) {
-		context_.configuration.af.stepValue = 1;
-	} else {
-		context_.configuration.af.stepValue = (context_.configuration.af.afocusMax+1) / 512;
+		if (context_.configuration.af.afocusMax < 512) {
+			context_.configuration.af.stepValue = 1;
+		} else {
+			context_.configuration.af.stepValue = (context_.configuration.af.afocusMax + 1) / 512;
+		}
 	}
-	
+
 	context_.configuration.agc.exposureMin = exposureInfo.min().get<int32_t>();
 	context_.configuration.agc.exposureMax = exposureInfo.max().get<int32_t>();
 	if (!context_.configuration.agc.exposureMin) {
@@ -295,9 +304,7 @@ void IPASoftSimple::fillParamsBuffer(const uint32_t frame)
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	for (auto const &algo : algorithms())
 		algo->prepare(context_, frame, frameContext, params_);
-		
-	
-	
+
 	setIspParams.emit();
 }
 
@@ -337,12 +344,14 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	//	  static_cast<int32_t>(camHelper_ ? camHelper_->gainCode(againNew) : againNew));
 
 	ControlList lensCtrls(lensCtrls_);
-	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
+	if (hasLensCtrl) {
+		lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
 
-	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
+		lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
 
-	LOG(IPASoft, Info) << "focus set to: " << context_.activeState.af.focus << " SharpnessValue: " << context_.activeState.af.sharpnessLock;
-	LOG(IPASoft, Info) << "sharpnessLock * 0.7: " << (uint64_t)context_.activeState.af.sharpnessLock * 0.7 << " SharpnessValue: " << (uint64_t)stats_->sharpnessValue_;
+		LOG(IPASoft, Info) << "focus set to: " << context_.activeState.af.focus << " SharpnessValue: " << context_.activeState.af.sharpnessLock;
+		LOG(IPASoft, Info) << "sharpnessLock * 0.7: " << (uint64_t)context_.activeState.af.sharpnessLock * 0.7 << " SharpnessValue: " << (uint64_t)stats_->sharpnessValue_;
+	}
 	setSensorControls.emit(ctrls, lensCtrls);
 }
 

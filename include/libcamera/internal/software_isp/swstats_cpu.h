@@ -93,6 +93,7 @@ private:
 	void finishYUV420Frame();
 
 	processFrameFn processFrame_;
+	processFrameFn processSharpness_;
 	finishFrameFn finishFrame_;
 
 	/* Variables set by configure(), used every line */

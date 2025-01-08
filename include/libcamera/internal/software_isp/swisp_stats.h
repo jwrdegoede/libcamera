@@ -49,6 +49,8 @@ struct SwIspStats {
 	 * \brief Holds the result of the laplacian operator for the current frame
 	 */
 	uint64_t sharpnessValue_;
+
+	bool hasSharpness;
 };
 
 } /* namespace libcamera */

@@ -296,8 +296,7 @@ void IPASoftSimple::fillParamsBuffer(const uint32_t frame)
 	for (auto const &algo : algorithms())
 		algo->prepare(context_, frame, frameContext, params_);
 		
-	// hack should ne done by autofocus algo prepare()
-	params_->wantSharpness = true;
+	
 	
 	setIspParams.emit();
 }
@@ -338,6 +337,8 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	//	  static_cast<int32_t>(camHelper_ ? camHelper_->gainCode(againNew) : againNew));
 
 	ControlList lensCtrls(lensCtrls_);
+	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
+
 	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, context_.activeState.af.focus);
 
 	LOG(IPASoft, Info) << "focus set to: " << context_.activeState.af.focus << " SharpnessValue: " << context_.activeState.af.sharpnessLock;

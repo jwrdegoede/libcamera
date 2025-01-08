@@ -415,6 +415,7 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		swapLines_ = false;
 		stats0_ = &SwStatsCpu::statsYUV420Line0;
 		processFrame_ = &SwStatsCpu::processYUV420Frame;
+		processSharpness_ = &SwStatsCpu::processYUV420FrameSharpness;
 		finishFrame_ = &SwStatsCpu::finishYUV420Frame;
 		return 0;
 	}
@@ -499,9 +500,6 @@ void SwStatsCpu::processYUV420Frame(MappedFrameBuffer &in)
 	linePointers[1] += window_.y * stride_ / 4;
 	linePointers[2] += window_.y * stride_ / 4;
 
-	if (true) /* TODO: add boolean for when you want to calculate sharpness */
-		calculateSharpness(in.planes()[0].data());
-
 	for (unsigned int y = 0; y < window_.height; y += 2) {
 		if (!(y & ySkipMask_))
 			(this->*stats0_)(linePointers);
@@ -512,8 +510,9 @@ void SwStatsCpu::processYUV420Frame(MappedFrameBuffer &in)
 	}
 }
 
-void SwStatsCpu::calculateSharpness(uint8_t *frameY)
+void SwStatsCpu::processYUV420FrameSharpness(MappedFrameBuffer &in)
 {
+	const uint8_t *frameY = in.planes()[0].data();
 	unsigned int width = frameSize_.width * 0.3;
 	unsigned int height = frameSize_.height * 0.3;
 
@@ -576,6 +575,7 @@ void SwStatsCpu::calculateSharpness(uint8_t *frameY)
 	uint64_t sharpness = static_cast<uint64_t>((stddev * stddev) * 100);
 
 	stats_.sharpnessValue_ = sharpness;
+	stats_.hasSharpness = true;
 	LOG(SwStatsCpu, Info) << stats_.sharpnessValue_;
 }
 
@@ -628,7 +628,6 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input,
 			      bool wantSharpness [[maybe_unused]])
 {
-	// LOG(SwStatsCpu, Error) << "hoihoihoihoihoihoihoihoihoihoi";
 	bench_.startFrame();
 	startFrame();
 
@@ -639,6 +638,12 @@ void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *in
 	}
 
 	(this->*processFrame_)(in);
+	if(wantSharpness && this->processSharpness_){
+		(this->*processSharpness_)(in);
+	}
+	else {
+		stats_.hasSharpness = false;
+	}
 	finishFrame(frame, bufferId);
 	bench_.finishFrame();
 }

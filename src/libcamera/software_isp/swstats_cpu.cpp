@@ -531,21 +531,33 @@ void SwStatsCpu::processYUV420FrameSharpness(MappedFrameBuffer &in)
 	}
 
 	/* Apply kernel and calculate sharpness */
-	int8_t kernel[3][3] = { { 0, 1, 0 },
-				{ 1, -4, 1 },
-				{ 0, 1, 0 } };
-
 	double sumArray[width][height];
+
 	for (unsigned int w = 1; w < width - 1; ++w) {
 		for (unsigned int h = 1; h < height - 1; ++h) {
-			double sum = 0.0;
-			for (int i = -1; i <= 1; ++i) {
-				for (int j = -1; j <= 1; ++j) {
-					unsigned int srcW = w + i;
-					unsigned int srcH = h + j;
-					sum += kernel[i + 1][j + 1] * src[srcW][srcH];
-				}
-			}
+			int sum = 0;
+
+			/*	int8_t kernel[3][3] = { { 0, 1, 0 },
+							{ 1, -4, 1 },
+							{ 0, 1, 0 } }; */
+
+			/* kernel[0][0], 0 entries are skipped */
+			/* kernel[0][1] */
+			sum += src[w][h - 1];
+			/* kernel[0][2], 0 entries are skipped */
+
+			/* kernel[1][0] */
+			sum += src[w - 1][h];
+			/* kernel[1][1] */
+			sum += -4 * src[w][h];
+			/* kernel[1][2] */
+			sum += src[w + 1][h];
+
+			/* kernel[2][0], 0 entries are skipped */
+			/* kernel[2][1] */
+			sum += src[w][h + 1];
+			/* kernel[2][2], 0 entries are skipped */
+
 			sumArray[w][h] = std::abs(sum);
 		}
 	}

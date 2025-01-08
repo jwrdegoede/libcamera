@@ -55,26 +55,42 @@ void Af::lockedState([[maybe_unused]] IPAContext &context, [[maybe_unused]] uint
 		}
 		return;
 	}
+
+	movingAvg(sharpness);
+
 	if(sharpnessLock < sharpness) {
 		sharpnessLock = sharpness;
 		context.activeState.af.sharpnessLock = sharpness;
-	}
-
-	else if ((uint64_t)((double)sharpnessLock * 0.6) > sharpness) { // to sweep
-		lensPos = 0;
-		waitFlag = true;
-		context.activeState.af.focus = lensPos;
-		afState = 2; // full sweep
-	} else if ((uint64_t)((double)sharpnessLock * 0.8) > sharpness) { // to smallsweep
-		if (lensPos < 200) {
+	} else if ((uint64_t)((double)sharpnessLock * 0.5) > sharpnessAverage) { // to sweep
+		if (oofCounter < 10) {
+			oofCounter++;
+			LOG(af, Info) << "Out of Focus x" << (int)oofCounter;
+			return;
+		} else {	
 			lensPos = 0;
-		} else {
-			lensPos = lensPos - 200;
+			waitFlag = true;
+			context.activeState.af.focus = lensPos;
+			afState = 2; // full sweep
 		}
-		waitFlag = true;
-		context.activeState.af.focus = lensPos;
-		itt = 0;
-		afState = 3; // small sweep
+	} else if ((uint64_t)((double)sharpnessLock * 0.7) > sharpnessAverage) { // to smallsweep
+		if (oofCounter < 10) {
+			oofCounter++;
+			LOG(af, Info) << "Out of Focus x" << (int)oofCounter;
+			return;
+		} else {
+			oofCounter = 0;
+			if (lensPos < 200) {
+				lensPos = 0;
+			} else {
+				lensPos = lensPos - 200;
+			}
+			waitFlag = true;
+			context.activeState.af.focus = lensPos;
+			itt = 0;
+			afState = 3; // small sweep
+		}	
+	} else {
+		oofCounter = 0;
 	}
 }
 
@@ -107,6 +123,9 @@ void Af::fullSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] u
 		context.activeState.af.focus = lensPos;
 		stable = true;
 		itt = 0;
+		std::fill(std::begin(movingArray), std::end(movingArray), 0);
+		movingIndex = 0;
+		movingTotal = 0;
 		afState = 1;
 	}
 }
@@ -137,8 +156,30 @@ void Af::smallSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] 
 		itt = 0;
 		context.activeState.af.sharpnessLock = sharpnessLock;
 		context.activeState.af.focus = lensPos;
+		std::fill(std::begin(movingArray), std::end(movingArray), 0);
+		movingIndex = 0;
+		movingTotal = 0;
 		afState = 1;
 	}
+}
+
+void Af::movingAvg(uint64_t sharpness){
+	uint64_t total = 0;
+	movingArray[movingIndex] = sharpness;
+	if(movingTotal < 8){
+		movingTotal++;
+	}
+	for(uint i = 0; i < movingTotal; ++i){
+		total += movingArray[i];
+	}
+	sharpnessAverage = total / movingTotal;
+	if(movingIndex >= 7) {
+		movingIndex = 0;
+	} else {
+		movingIndex++;
+	}
+
+	LOG(af, Info) << "Moving Average: " << (uint64_t)sharpnessAverage;
 }
 
 REGISTER_IPA_ALGORITHM(Af, "Af")

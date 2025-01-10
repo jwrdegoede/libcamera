@@ -175,6 +175,11 @@ int IPASoftSimple::init(const IPASettings &settings,
 		return -EINVAL;
 	}
 
+	// if (sensorInfoMap.find(V4L2_CID_FOCUS_ABSOLUTE) == sensorInfoMap.end()) {
+	// 	LOG(IPASoft, Error) << "Don't have focus control";
+	// 	return -EINVAL;
+	// }
+
 	return 0;
 }
 
@@ -187,11 +192,21 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 
 	lensCtrls_ = configInfo.lensControls;
 
+	const ControlInfo &lensInfo = lensCtrls_.find(V4L2_CID_FOCUS_ABSOLUTE)->second;
+
 	/* Clear the IPA context before the streaming session. */
 	context_.configuration = {};
 	context_.activeState = {};
 	context_.frameContexts.clear();
 
+	context_.configuration.af.afocusMax = lensInfo.max().get<int32_t>();
+
+	if (context_.configuration.af.afocusMax < 512) {
+		context_.configuration.af.stepValue = 1;
+	} else {
+		context_.configuration.af.stepValue = (context_.configuration.af.afocusMax+1) / 512;
+	}
+	
 	context_.configuration.agc.exposureMin = exposureInfo.min().get<int32_t>();
 	context_.configuration.agc.exposureMax = exposureInfo.max().get<int32_t>();
 	if (!context_.configuration.agc.exposureMin) {
@@ -324,6 +339,8 @@ void IPASoftSimple::processStats(const uint32_t frame,
 
 	ControlList lensCtrls(lensCtrls_);
 
+	LOG(IPASoft, Info) << "focus set to: " << context_.activeState.af.focus << " SharpnessValue: " << context_.activeState.af.sharpnessLock;
+	LOG(IPASoft, Info) << "sharpnessLock * 0.8: " << (uint64_t)context_.activeState.af.sharpnessLock * 0.8 << " SharpnessValue: " << (uint64_t)stats_->sharpnessValue_;
 	setSensorControls.emit(ctrls, lensCtrls);
 }
 

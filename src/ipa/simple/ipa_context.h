@@ -26,6 +26,10 @@ struct IPASessionConfiguration {
 	struct {
 		std::optional<uint8_t> level;
 	} black;
+	struct {
+		int32_t afocusMax;
+		int32_t stepValue;
+	} af;
 };
 
 struct IPAActiveState {
@@ -49,6 +53,11 @@ struct IPAActiveState {
 		std::array<double, kGammaLookupSize> gammaTable;
 		uint8_t blackLevel;
 	} gamma;
+
+	struct {
+		int32_t focus;
+		uint64_t sharpnessLock;
+	} af;
 };
 
 struct IPAFrameContext : public FrameContext {

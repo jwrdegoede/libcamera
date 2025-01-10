@@ -398,6 +398,7 @@ bool AtomispPipelineHandler::match(DeviceEnumerator *enumerator)
 		return false;
 
 	for (MediaEntity *entity : media->entities()) {
+		LOG(Atomisp, Info) << "Media entity: " << entity;
 		switch (entity->function()) {
 		case MEDIA_ENT_F_CAM_SENSOR:
 			sensors.push_back(entity);

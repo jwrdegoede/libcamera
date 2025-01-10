@@ -44,6 +44,11 @@ struct SwIspStats {
 	 * \brief A histogram of luminance values
 	 */
 	Histogram yHistogram;
+
+	/**
+	 * \brief Holds the result of the laplacian operator for the current frame
+	 */
+	uint64_t sharpnessValue_;
 };
 
 } /* namespace libcamera */

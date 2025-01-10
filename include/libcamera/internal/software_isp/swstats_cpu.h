@@ -88,6 +88,8 @@ private:
 
 	void processBayerFrame2(MappedFrameBuffer &in);
 	void processYUV420Frame(MappedFrameBuffer &in);
+	void processYUV420FrameSharpness(MappedFrameBuffer &in);
+	void calculateSharpness(uint8_t *frameY);
 	void finishYUV420Frame();
 
 	processFrameFn processFrame_;
@@ -101,8 +103,11 @@ private:
 	unsigned int ySkipMask_;
 
 	Rectangle window_;
-
+	
+	
 	Size patternSize_;
+
+	Size frameSize_;
 
 	unsigned int xShift_;
 	unsigned int stride_;

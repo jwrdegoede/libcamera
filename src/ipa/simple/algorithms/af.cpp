@@ -75,7 +75,7 @@ void Af::process([[maybe_unused]] IPAContext &context, [[maybe_unused]] const ui
 void Af::initState([[maybe_unused]] IPAContext &context)
 {
 	context.activeState.af.focus = 0;
-	if (itt < 255) {
+	if (itt < CinitframeSkip) {
 		itt++;
 	} else {
 		itt = 0;
@@ -87,7 +87,7 @@ void Af::lockedState([[maybe_unused]] IPAContext &context, [[maybe_unused]] uint
 {
 	if (stable) {
 		itt++;
-		if (itt >= 20) {
+		if (itt >= CStabilizeDelay) {
 			stable = false;
 			itt = 0;
 		}
@@ -103,7 +103,7 @@ void Af::lockedState([[maybe_unused]] IPAContext &context, [[maybe_unused]] uint
 	if (sharpnessLock < sharpness) {
 		sharpnessLock = sharpness;
 		context.activeState.af.sharpnessLock = sharpness;
-	} else if ((uint64_t)((double)sharpnessLock * 0.5) > sharpnessAverage) { // to sweep
+	} else if ((uint64_t)((double)sharpnessLock * CfullSweepStartPercentage) > sharpnessAverage) { // to sweep
 		if (oofCounter < 10) {
 			oofCounter++;
 			LOG(af, Info) << "Out of Focus x" << (int)oofCounter;
@@ -114,7 +114,7 @@ void Af::lockedState([[maybe_unused]] IPAContext &context, [[maybe_unused]] uint
 			context.activeState.af.focus = lensPos;
 			afState = full; // full sweep
 		}
-	} else if ((uint64_t)((double)sharpnessLock * 0.7) > sharpnessAverage) { // to smallsweep
+	} else if ((uint64_t)((double)sharpnessLock * CsmallSweepStartPercentage) > sharpnessAverage) { // to smallsweep
 		if (oofCounter < 10) {
 			oofCounter++;
 			LOG(af, Info) << "Out of Focus x" << (int)oofCounter;
@@ -141,7 +141,7 @@ void Af::fullSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] u
 	//in case VCM is moving
 	if (waitFlag) {
 		itt++;
-		if (itt >= 20) {
+		if (itt >= CStabilizeDelay) {
 			waitFlag = false;
 			itt = 0;
 		}
@@ -151,7 +151,7 @@ void Af::fullSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] u
 		return;
 
 	int32_t focusMax = context.configuration.af.afocusMax;
-	if (lensPos < focusMax && highest.second * 0.5 < sharpness) {
+	if (lensPos < focusMax && highest.second * CstopSweepPercentage < sharpness) {
 		if (sharpness > highest.second) {
 			highest = std::make_pair(lensPos, sharpness);
 			LOG(af, Info) << "Highest Sharpness: " << highest.second;
@@ -180,7 +180,7 @@ void Af::smallSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] 
 {
 	if (waitFlag) {
 		itt++;
-		if (itt >= 20) {
+		if (itt >= CStabilizeDelay) {
 			waitFlag = false;
 			itt = 0;
 		}
@@ -190,7 +190,7 @@ void Af::smallSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] 
 	if (!hasSharpness)
 		return;
 
-	if (itt < 400 && highest.second * 0.5 < sharpness) {
+	if (itt < CsmallSweepMaxSize && highest.second * CstopSweepPercentage < sharpness) {
 		if (sharpness > highest.second) {
 			highest = std::make_pair(lensPos, sharpness);
 		}
@@ -215,14 +215,14 @@ void Af::smallSweepState([[maybe_unused]] IPAContext &context, [[maybe_unused]] 
 void Af::movingAvg(uint64_t sharpness){
 	uint64_t total = 0;
 	movingArray[movingIndex] = sharpness;
-	if(movingTotal < 8){
+	if(movingTotal < CmovingTotalMax){
 		movingTotal++;
 	}
 	for(uint i = 0; i < movingTotal; ++i){
 		total += movingArray[i];
 	}
 	sharpnessAverage = total / movingTotal;
-	if(movingIndex >= 7) {
+	if(movingIndex >= (uint8_t)(CmovingTotalMax - 1)) {
 		movingIndex = 0;
 	} else {
 		movingIndex++;

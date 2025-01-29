@@ -28,7 +28,16 @@ private:
 	void lockedState(IPAContext &context,  uint64_t sharpness, bool hasSharpness);
 	void fullSweepState(IPAContext &context, uint64_t sharpness, bool hasSharpness);
 	void smallSweepState(IPAContext &context,  uint64_t sharpness, bool hasSharpness);
+
 	const uint8_t CframeSkip = 10;
+	const uint8_t CinitframeSkip = 255;
+	const uint8_t CStabilizeDelay = 20;
+	const uint8_t CmovingTotalMax = 8;
+	const uint16_t CsmallSweepMaxSize = 400;
+	const double CstopSweepPercentage = 0.5;
+	const double CfullSweepStartPercentage = 0.5;
+	const double CsmallSweepStartPercentage = 0.7;
+
 	uint8_t frameCounter;
 	bool wantSharpness;
 	int32_t lensPos;

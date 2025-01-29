@@ -113,6 +113,8 @@ private:
 	unsigned int xShift_;
 	unsigned int stride_;
 
+	const float CSharpnessFramePercentage = 0.3;
+
 	SharedMemObject<SwIspStats> sharedStats_;
 	SwIspStats stats_;
 	Benchmark bench_;

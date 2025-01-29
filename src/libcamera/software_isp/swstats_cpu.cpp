@@ -513,8 +513,8 @@ void SwStatsCpu::processYUV420Frame(MappedFrameBuffer &in)
 void SwStatsCpu::processYUV420FrameSharpness(MappedFrameBuffer &in)
 {
 	const uint8_t *frameY = in.planes()[0].data();
-	unsigned int width = frameSize_.width * 0.3;
-	unsigned int height = frameSize_.height * 0.3;
+	unsigned int width = frameSize_.width * CSharpnessFramePercentage;
+	unsigned int height = frameSize_.height * CSharpnessFramePercentage;
 
 	unsigned int offsetX = (frameSize_.width - width) / 2;
 	unsigned int offsetY = (frameSize_.height - height) / 2;

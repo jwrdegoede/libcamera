@@ -51,4 +51,4 @@ general:
   macbeth:
     small: 1
     show: 0
-#  blacklevel: 32
+  blacklevel: 32

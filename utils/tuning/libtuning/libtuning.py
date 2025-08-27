@@ -190,7 +190,7 @@ class Tuner(object):
                 logger.error(f'Config is invalid for module {module.type}')
                 return -1
 
-        has_lsc = any(isinstance(m, lt.modules.lsc.LSC) for m in self.modules)
+        has_lsc = 0
         # Only one LSC module allowed
         has_only_lsc = has_lsc and len(self.modules) == 1
 

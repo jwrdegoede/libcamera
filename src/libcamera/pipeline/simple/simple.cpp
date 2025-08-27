@@ -251,7 +251,7 @@ namespace {
 static const SimplePipelineInfo supportedDevices[] = {
 	{ "dcmipp", {}, false },
 	{ "imx7-csi", { { "pxp", 1 } }, false },
-	{ "intel-ipu6", {}, true },
+	{ "intel-ipu6", {}, false },
 	{ "j721e-csi2rx", {}, true },
 	{ "mtk-seninf", { { "mtk-mdp", 3 } }, false },
 	{ "mxc-isi", {}, false },

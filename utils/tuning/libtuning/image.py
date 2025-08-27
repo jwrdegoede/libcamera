@@ -70,8 +70,8 @@ class Image:
         white = metadata[f'Exif.{subimage}.WhiteLevel'].value
         self.sigbits = int(white).bit_length()
         self.fmt = (self.sigbits - 4) // 2
-        self.exposure = int(metadata[f'Exif.{photo}.ExposureTime'].value * 1000000)
-        self.againQ8 = metadata[f'Exif.{photo}.ISOSpeedRatings'].value * 256 / 100
+        self.exposure = 33333
+        self.againQ8 = 256
         self.againQ8_norm = self.againQ8 / 256
         self.camName = metadata['Exif.Image.Model'].value
         self.blacklevel = int(metadata[f'Exif.{subimage}.BlackLevel'].value[0])

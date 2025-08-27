@@ -50,5 +50,5 @@ general:
       #  hi: 1300
   macbeth:
     small: 1
-    show: 0
+    show: 1
 #  blacklevel: 32

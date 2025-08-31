@@ -373,7 +373,7 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	stats_->setWindow(Rectangle(window_.size()));
 
 	// Raw bayer input as texture
-	eglImageBayerIn_ = new eGLImage(width_, height_, 32, GL_TEXTURE0, 0);
+	eglImageBayerIn_ = new eGLImage(width_, height_, 32, inputCfg.stride, GL_TEXTURE0, 0);
 	if (!eglImageBayerIn_)
 		return -ENOMEM;
 

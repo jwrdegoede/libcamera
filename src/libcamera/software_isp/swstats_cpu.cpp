@@ -313,11 +313,13 @@ void SwStatsCpu::startFrame(void)
  * \brief Finish statistics calculation for the current frame
  * \param[in] frame The frame number
  * \param[in] bufferId ID of the statistics buffer
+ * \param[in] valid Indicates if the statistics for the current frame are valid
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId, bool valid)
 {
+	stats_.valid = valid;
 	*sharedStats_ = stats_;
 	statsReady.emit(frame, bufferId);
 }

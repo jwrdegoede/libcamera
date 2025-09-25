@@ -41,7 +41,7 @@ public:
 	int configure(const StreamConfiguration &inputCfg);
 	void setWindow(const Rectangle &window);
 	void startFrame();
-	void finishFrame(uint32_t frame, uint32_t bufferId);
+	void finishFrame(uint32_t frame, uint32_t bufferId, bool valid);
 
 	void processLine0(unsigned int y, const uint8_t *src[])
 	{

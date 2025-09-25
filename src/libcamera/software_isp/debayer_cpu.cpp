@@ -851,7 +851,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	 *
 	 * \todo Pass real bufferId once stats buffer passing is changed.
 	 */
-	stats_->finishFrame(frame, 0);
+	stats_->finishFrame(frame, 0, true);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

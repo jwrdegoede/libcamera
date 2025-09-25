@@ -90,6 +90,11 @@ namespace libcamera {
  */
 
 /**
+ * \var SwStatsCpu::kStatPerNumFrames
+ * \brief Run stats once every kStatPerNumFrames frames
+ */
+
+/**
  * \typedef SwStatsCpu::statsProcessFn
  * \brief Called when there is data to get statistics from
  * \param[in] src The input data

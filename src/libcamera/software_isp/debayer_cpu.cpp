@@ -655,7 +655,7 @@ void DebayerCpu::memcpyNextLine(const uint8_t *linePointers[])
 	lineBufferIndex_ = (lineBufferIndex_ + 1) % (patternHeight + 1);
 }
 
-void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
+void DebayerCpu::process2(uint32_t frame, const uint8_t *src, uint8_t *dst)
 {
 	unsigned int yEnd = window_.y + window_.height;
 	/* Holds [0] previous- [1] current- [2] next-line */
@@ -681,7 +681,8 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 	for (unsigned int y = window_.y; y < yEnd; y += 2) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine0(y, linePointers);
+		if (frame % SwStatsCpu::kStatPerNumFrames == 0)
+			stats_->processLine0(y, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -696,7 +697,8 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 	if (window_.y == 0) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine0(yEnd, linePointers);
+		if (frame % SwStatsCpu::kStatPerNumFrames == 0)
+			stats_->processLine0(yEnd, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -710,7 +712,7 @@ void DebayerCpu::process2(const uint8_t *src, uint8_t *dst)
 	}
 }
 
-void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
+void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst)
 {
 	const unsigned int yEnd = window_.y + window_.height;
 	/*
@@ -733,7 +735,8 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 	for (unsigned int y = window_.y; y < yEnd; y += 4) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine0(y, linePointers);
+		if (frame % SwStatsCpu::kStatPerNumFrames == 0)
+			stats_->processLine0(y, linePointers);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -746,7 +749,8 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine2(y, linePointers);
+		if (frame % SwStatsCpu::kStatPerNumFrames == 0)
+			stats_->processLine2(y, linePointers);
 		(this->*debayer2_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -821,12 +825,13 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 		return;
 	}
 
-	stats_->startFrame();
+	if (frame % SwStatsCpu::kStatPerNumFrames == 0)
+		stats_->startFrame();
 
 	if (inputConfig_.patternSize.height == 2)
-		process2(in.planes()[0].data(), out.planes()[0].data());
+		process2(frame, in.planes()[0].data(), out.planes()[0].data());
 	else
-		process4(in.planes()[0].data(), out.planes()[0].data());
+		process4(frame, in.planes()[0].data(), out.planes()[0].data());
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
@@ -851,7 +856,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	 *
 	 * \todo Pass real bufferId once stats buffer passing is changed.
 	 */
-	stats_->finishFrame(frame, 0, true);
+	stats_->finishFrame(frame, 0, frame % SwStatsCpu::kStatPerNumFrames == 0);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

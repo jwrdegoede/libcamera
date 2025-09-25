@@ -32,6 +32,9 @@ public:
 	SwStatsCpu();
 	~SwStatsCpu() = default;
 
+	/* Run stats once every 4 frames */
+	static constexpr uint32_t kStatPerNumFrames = 4;
+
 	bool isValid() const { return sharedStats_.fd().isValid(); }
 
 	const SharedFD &getStatsFD() { return sharedStats_.fd(); }

@@ -1,0 +1,83 @@
+List the TODOs in perceived order of ease.
+
+Version 3:
+Use dma-buf handle to generate upload texture:
+	- eglCreateImageKHR can be used to generate the upload texture i.e.
+	  to feed the bayer data into the GPU.
+
+Denoising:
+	- As below still TBD
+
+Dead pixel correction:
+	- As below still TBD
+
+Lense shading correction:
+	- This is WIP but as yet still TBD
+
+Lense flare correction:
+	- Not WIP still TBD
+
+processFrame() to run in its own thread:
+	- processFrame() runs in the context of the Debayer::process()
+	  thread. Robert Mader suggested and it seems like a good
+	  suggestion too to run processFrame() in its own thread.
+
+Version 2:
+Make GPUISP default:
+	- Right now the environment variable allows over-riding to swtich
+	  from CPU to GPU.
+	- Once we support 24 BPP output on GPUISP we will have the same
+	  pixel format support as CPU and can set the default to GPU without
+	  regressing functionality
+
+glTexture1D:
+	- Initial code was developed for < GLES 2.O but since we have fixed
+	  on GLES >= 2.0 this means we can use glTexture1D
+	- Provided this is so amend the shaders to do val = texture(x, y, 0);
+	  not texture(x, y, 0.5) the 0.5 is because of using glTexture2D
+
+Denoising:
+	- Run a denoise algorithm in the shaders
+	- Supply a control to influence the noise-floor ?
+
+Dead pixel correction:
+	- Add logic to correct dead pixels in the fragment shaders
+
+Version 1:
+24 bit output support:
+	- Take the BPP we already capture and get a 24 bit GBM surface
+	- Pass a compile-time parameter to the shaders to tell them to do
+	  gl_FragColor = rgb not gl_FragColor = rgba
+	- Version 2:
+	  This is not possible.
+	  gl_FragColor expects vec4 not vec3 on the output.
+	  If you really want RGB888 run cpuisp.
+
+Surfaceless GBM:
+	- We get a GBM surface and then have to swap buffers
+	  If we rework for surfaceless GBM and EGL then the swap buffer can
+	  be dropped.
+	- Version 2:
+	  Complete GBM surface removed, memcpy() phase removed also
+
+dma-buf texture upload:
+	- Currently we pass the input buffer to glCreateTexture2D.
+	  We should be able to make the upload of the input buffer go faster
+	  by using eglCreateImageKHR and enumerated the dma-buf contents.
+	- Version 2:
+	  Complete sm8250 test platform shows 20x performance increase
+	  with CCM.
+
+Render-to-texture:
+	- Right now we render to the GBM provided surface framebuffer
+	  and then memcpy from that buffer to the target output buffer.
+	  This necessitates flushing the cache on the target buffer in
+	  addition to the memcpy().
+	- Render-to-texture where we generate the target framebuffer
+	  directly from a dma-buf handle will mitigate the memcpy() phase.
+	- It should be the case then that the consumer of the output buffer
+	  i.e. the thing that's not libcamera is responsible to flush the cache
+	  if-and-only-if that user writes to the buffer.
+	- We need to flush the cache on the buffer because we are memcpying() to it.
+	- Version 2:
+	  Done in version 2

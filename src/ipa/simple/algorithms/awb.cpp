@@ -38,12 +38,14 @@ int Awb::configure(IPAContext &context,
 void Awb::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext,
-		  [[maybe_unused]] DebayerParams *params)
+		  DebayerParams *params)
 {
 	auto &gains = context.activeState.awb.gains;
 	/* Just report, the gains are applied in LUT algorithm. */
 	frameContext.gains.red = gains.r();
 	frameContext.gains.blue = gains.b();
+	/* Latch the AWB gains so GPUISP can consume them. */
+	params->gains = gains;
 }
 
 void Awb::process(IPAContext &context,

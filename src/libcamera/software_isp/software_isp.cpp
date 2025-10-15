@@ -366,6 +366,9 @@ int SoftwareIsp::start()
  */
 void SoftwareIsp::stop()
 {
+	debayer_->invokeMethod(&Debayer::stop,
+			       ConnectionTypeQueued);
+
 	ispWorkerThread_.exit();
 	ispWorkerThread_.wait();
 

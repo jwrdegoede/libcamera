@@ -48,6 +48,7 @@ public:
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) = 0;
 
 	virtual void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params) = 0;
+	virtual void stop() = 0;
 
 	virtual SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) = 0;
 

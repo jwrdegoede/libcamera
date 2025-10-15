@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 subdir('tracepoints')
+subdir('shaders')
 
 libcamera_internal_headers = files([
     'bayer_format.h',
@@ -58,6 +59,15 @@ tracepoints_h = custom_target(
 )
 
 libcamera_internal_headers += tracepoints_h
+
+libcamera_shader_headers = custom_target(
+    'gen-shader-headers',
+    input : [shader_files],
+    output : 'glsl_shaders.h',
+    command : [gen_shader_headers, meson.project_source_root(), meson.project_build_root(), '@OUTPUT@', '@INPUT@'],
+)
+
+libcamera_internal_headers += libcamera_shader_headers
 
 subdir('converter')
 subdir('software_isp')

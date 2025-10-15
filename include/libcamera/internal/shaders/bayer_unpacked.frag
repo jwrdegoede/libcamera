@@ -28,6 +28,7 @@ varying vec4            center;
 varying vec4            yCoord;
 varying vec4            xCoord;
 uniform mat3		ccm;
+uniform vec3		awb;
 
 void main(void) {
     vec3 rgb;
@@ -110,6 +111,11 @@ void main(void) {
         ((alternate.x == 0.0) ?
             vec3(PATTERN.w, C, PATTERN.z) :
             vec3(PATTERN.yx, C));
+
+	/* Apply white balance before colour correction matrix */
+	rgb.r = rgb.r * awb.r;
+	rgb.g = rgb.g * awb.g;
+	rgb.b = rgb.b * awb.b;
 
 #if defined(APPLY_CCM_PARAMETERS)
 	/*

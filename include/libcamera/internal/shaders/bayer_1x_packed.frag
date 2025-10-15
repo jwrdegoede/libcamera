@@ -69,6 +69,7 @@ uniform sampler2D red_param;
 uniform sampler2D green_param;
 uniform sampler2D blue_param;
 uniform mat3 ccm;
+uniform vec3 awb;
 
 void main(void)
 {
@@ -215,6 +216,11 @@ void main(void)
 		(even_row ?
 			vec3(patterns.y, C, patterns.x) :
 			vec3(patterns.wz, C));
+
+	/* Apply white balance before colour correction matrix */
+	rgb.r = rgb.r * awb.r;
+	rgb.g = rgb.g * awb.g;
+	rgb.b = rgb.b * awb.b;
 
 #if defined(APPLY_CCM_PARAMETERS)
 	/*

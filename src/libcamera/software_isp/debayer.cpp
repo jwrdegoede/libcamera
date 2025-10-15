@@ -223,8 +223,10 @@ void Debayer::dmaSyncBegin(std::vector<DmaSyncer> &dmaSyncers, FrameBuffer *inpu
 	for (const FrameBuffer::Plane &plane : input->planes())
 		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Read);
 
-	for (const FrameBuffer::Plane &plane : output->planes())
-		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Write);
+	if (output) {
+		for (const FrameBuffer::Plane &plane : output->planes())
+			dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Write);
+	}
 }
 
 } /* namespace libcamera */

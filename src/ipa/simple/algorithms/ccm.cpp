@@ -14,6 +14,7 @@
 #include <libcamera/control_ids.h>
 
 #include "libcamera/internal/matrix.h"
+#include "libcamera/internal/software_isp/debayer_params.h"
 
 namespace {
 
@@ -84,7 +85,7 @@ void Ccm::applySaturation(Matrix<float, 3, 3> &ccm, float saturation)
 }
 
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, [[maybe_unused]] DebayerParams *params)
+		  IPAFrameContext &frameContext, DebayerParams *params)
 {
 	auto &saturation = context.activeState.knobs.saturation;
 
@@ -108,6 +109,7 @@ void Ccm::prepare(IPAContext &context, const uint32_t frame,
 	context.activeState.ccm.ccm = ccm;
 	frameContext.ccm.ccm = ccm;
 	frameContext.saturation = saturation;
+	params->ccm = ccm;
 	context.activeState.ccm.changed = true;
 }
 

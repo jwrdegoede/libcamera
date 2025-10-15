@@ -1145,7 +1145,6 @@ const IPAModuleInfo ipaModuleInfo = {
 	IPA_MODULE_API_VERSION,
 	1,
 	"rpi/pisp",
-	"rpi/pisp",
 };
 
 IPAInterface *ipaCreate()

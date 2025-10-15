@@ -202,7 +202,6 @@ const struct IPAModuleInfo ipaModuleInfo = {
 	IPA_MODULE_API_VERSION,
 	0,
 	"vimc",
-	"vimc",
 };
 
 IPAInterface *ipaCreate()

@@ -380,7 +380,6 @@ const struct IPAModuleInfo ipaModuleInfo = {
 	IPA_MODULE_API_VERSION,
 	1,
 	"mali-c55",
-	"mali-c55",
 };
 
 IPAInterface *ipaCreate()

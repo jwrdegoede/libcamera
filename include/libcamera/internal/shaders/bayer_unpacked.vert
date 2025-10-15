@@ -44,10 +44,10 @@ void main(void) {
     center.xy = textureIn;
     center.zw = textureIn * tex_size + tex_bayer_first_red;
 
-    xCoord = center.x + vec4(-2.0 * tex_step.x,
-                             -tex_step.x, tex_step.x, 2.0 * tex_step.x);
-    yCoord = center.y + vec4(-2.0 * tex_step.y,
-                              -tex_step.y, tex_step.y, 2.0 * tex_step.y);
+    xCoord = center.x + 0.1 * tex_step.x +
+      vec4(-2.0 * tex_step.x, -tex_step.x, tex_step.x, 2.0 * tex_step.x);
+    yCoord = center.y + 0.1 * tex_step.y +
+      vec4(-2.0 * tex_step.y, -tex_step.y, tex_step.y, 2.0 * tex_step.y);
 
     gl_Position = proj_matrix * vertexIn;
 }

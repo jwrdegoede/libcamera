@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include <iterator>
 #include <list>
 #include <map>
@@ -46,6 +47,8 @@
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(SimplePipeline)
+
+using namespace std::literals::chrono_literals;
 
 /* -----------------------------------------------------------------------------
  *
@@ -348,6 +351,7 @@ public:
 	std::unique_ptr<Converter> converter_;
 	std::unique_ptr<SoftwareIsp> swIsp_;
 	SimpleFrames frameInfo_;
+	utils::Duration lineDuration_;
 
 private:
 	void tryPipeline(unsigned int code, const Size &size);
@@ -651,6 +655,15 @@ int SimpleCameraData::init()
 
 	properties_ = sensor_->properties();
 
+	IPACameraSensorInfo sensorInfo{};
+	ret = sensor_->sensorInfo(&sensorInfo);
+	if (ret) {
+		LOG(SoftwareIsp, Error) << "Camera sensor information not available";
+		return ret;
+	}
+
+	lineDuration_ = sensorInfo.minLineLength * 1.0s / sensorInfo.pixelRate;
+
 	/* Find the first subdev that can generate a frame start signal, if any. */
 	frameStartEmitter_ = nullptr;
 	for (const Entity &entity : entities_) {
@@ -923,9 +936,23 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		}
 	}
 
-	if (request)
+	if (request) {
 		request->metadata().set(controls::SensorTimestamp,
 					buffer->metadata().timestamp);
+		if (!pipe->swIspEnabled()) {
+			uint32_t ids[] = { V4L2_CID_EXPOSURE, V4L2_CID_ANALOGUE_GAIN };
+			ControlList controls = sensor_->device()->getControls(ids);
+			const double gain10 = 128;
+
+			uint32_t exposure = controls.get(V4L2_CID_EXPOSURE).get<int32_t>();
+			uint32_t gain = controls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
+
+			utils::Duration exposureTime =lineDuration_ * exposure;
+			request->metadata().set(controls::ExposureTime,
+						exposureTime.get<std::micro>());
+			request->metadata().set(controls::AnalogueGain, gain / gain10);
+		}
+	}
 
 	/*
 	 * Queue the captured and the request buffer to the converter or Software

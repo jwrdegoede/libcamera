@@ -571,6 +571,8 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 
 	std::vector<DmaSyncer> dmaSyncers;
 
+	dmaSyncBegin(dmaSyncers, input, nullptr);
+
 	setParams(params);
 
 	/* Copy metadata from the input buffer */
@@ -596,7 +598,6 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
 	/* Calculate stats for the whole frame */
-	dmaSyncBegin(dmaSyncers, input, nullptr);
 	stats_->processFrame(frame, 0, input);
 	dmaSyncers.clear();
 

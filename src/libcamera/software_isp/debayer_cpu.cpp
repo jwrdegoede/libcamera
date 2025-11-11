@@ -47,14 +47,14 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const GlobalConfigurat
 	 * Reading from uncached buffers may be very slow.
 	 * In such a case, it's better to copy input buffer data to normal memory.
 	 * But in case of cached buffers, copying the data is unnecessary overhead.
-	 * enable_input_memcpy_ makes this behavior configurable.  At the moment, we
+	 * forceInputMemcpy_ makes this behavior configurable.  At the moment, we
 	 * always set it to true as the safer choice but this should be changed in
 	 * future.
 	 *
 	 * \todo Make memcpy automatic based on runtime detection of platform
 	 * capabilities.
 	 */
-	enableInputMemcpy_ =
+	forceInputMemcpy_ =
 		configuration.option<bool>({ "software_isp", "copy_input_buffer" }).value_or(true);
 }
 
@@ -289,6 +289,30 @@ void DebayerCpu::debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[])
 }
 
 /*
+ * Functions to mask out high unused bits from input buffers. These bits should
+ * already be 0, but sometimes with corrupt input frames these are not 0 causing
+ * out-of-bounds accesses to various lookup tables. These functions explicitly
+ * set the unused high bits to 0 to avoid corrupt frames causing crashes.
+ */
+void DebayerCpu::inputMask10(uint8_t *data, unsigned int len)
+{
+	/* Everything is aligned to 2 16 bit pixels, mask 2 pixels at a time */
+	uint32_t *input, *end = (uint32_t *)(data + len);
+
+	for (input = (uint32_t *)data; input < end; input++)
+		*input &= 0x03ff03ff;
+}
+
+void DebayerCpu::inputMask12(uint8_t *data, unsigned int len)
+{
+	/* Everything is aligned to 2 16 bit pixels, mask 2 pixels at a time */
+	uint32_t *input, *end = (uint32_t *)(data + len);
+
+	for (input = (uint32_t *)data; input < end; input++)
+		*input &= 0x0fff0fff;
+}
+
+/*
  * Setup the Debayer object according to the passed in parameters.
  * Return 0 on success, a negative errno value on failure
  * (unsupported parameters).
@@ -395,6 +419,8 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat,
 
 	xShift_ = 0;
 	swapRedBlueGains_ = false;
+	inputMask_ = NULL;
+	enableInputMemcpy_ = forceInputMemcpy_;
 
 	auto invalidFmt = []() -> int {
 		LOG(Debayer, Error) << "Unsupported input output format combination";
@@ -446,12 +472,17 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat,
 			break;
 		case 10:
 			SET_DEBAYER_METHODS(debayer10_BGBG_BGR888, debayer10_GRGR_BGR888)
+			inputMask_ = &DebayerCpu::inputMask10;
 			break;
 		case 12:
 			SET_DEBAYER_METHODS(debayer12_BGBG_BGR888, debayer12_GRGR_BGR888)
+			inputMask_ = &DebayerCpu::inputMask12;
 			break;
 		}
 		setupStandardBayerOrder(bayerFormat.order);
+		if (inputMask_)
+			enableInputMemcpy_ = true;
+
 		return 0;
 	}
 
@@ -601,6 +632,8 @@ void DebayerCpu::setupInputMemcpy(const uint8_t *linePointers[])
 		memcpy(lineBuffers_[i].data(),
 		       linePointers[i + 1] - lineBufferPadding_,
 		       lineBufferLength_);
+		if (inputMask_)
+			(this->*inputMask_)(lineBuffers_[i].data(), lineBufferLength_);
 		linePointers[i + 1] = lineBuffers_[i].data() + lineBufferPadding_;
 	}
 
@@ -629,6 +662,10 @@ void DebayerCpu::memcpyNextLine(const uint8_t *linePointers[])
 	memcpy(lineBuffers_[lineBufferIndex_].data(),
 	       linePointers[patternHeight] - lineBufferPadding_,
 	       lineBufferLength_);
+	if (inputMask_)
+		(this->*inputMask_)(lineBuffers_[lineBufferIndex_].data(),
+				    lineBufferLength_);
+
 	linePointers[patternHeight] = lineBuffers_[lineBufferIndex_].data() + lineBufferPadding_;
 
 	lineBufferIndex_ = (lineBufferIndex_ + 1) % (patternHeight + 1);

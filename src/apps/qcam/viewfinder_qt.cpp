@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <utility>
 
+#include "libcamera/internal/dma_buf_allocator.h"
 #include <libcamera/formats.h>
 
 #include <QImage>
@@ -114,6 +115,10 @@ void ViewFinderQt::render(libcamera::FrameBuffer *buffer, Image *image)
 			 * Otherwise, convert the format and release the frame
 			 * buffer immediately.
 			 */
+			std::vector<libcamera::DmaSyncer> dmaSyncers;
+			for (const libcamera::FrameBuffer::Plane &plane : buffer->planes())
+				dmaSyncers.emplace_back(plane.fd, libcamera::DmaSyncer::SyncType::Read);
+
 			converter_.convert(image, size, &image_);
 		}
 	}
@@ -161,6 +166,12 @@ void ViewFinderQt::paintEvent(QPaintEvent *)
 
 	/* If we have an image, draw it, with black letterbox rectangles. */
 	if (!image_.isNull()) {
+		if (buffer_) {
+			std::vector<libcamera::DmaSyncer> dmaSyncers;
+			for (const libcamera::FrameBuffer::Plane &plane : buffer_->planes())
+				dmaSyncers.emplace_back(plane.fd, libcamera::DmaSyncer::SyncType::Read);
+		}
+
 		if (place_.width() < width()) {
 			QRect rect{ 0, 0, (width() - place_.width()) / 2, height() };
 			painter.drawRect(rect);

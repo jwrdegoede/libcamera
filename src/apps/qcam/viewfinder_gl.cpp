@@ -9,13 +9,15 @@
 
 #include <array>
 
+#include <libcamera/formats.h>
+
+#include "libcamera/internal/dma_buf_allocator.h"
+
 #include <QByteArray>
 #include <QFile>
 #include <QImage>
 #include <QMatrix4x4>
 #include <QStringList>
-
-#include <libcamera/formats.h>
 
 #include "../common/image.h"
 
@@ -541,6 +543,10 @@ void ViewFinderGL::doRender()
 {
 	/* Stride of the first plane, in pixels. */
 	unsigned int stridePixels;
+
+	std::vector<libcamera::DmaSyncer> dmaSyncers;
+	for (const libcamera::FrameBuffer::Plane &plane : buffer_->planes())
+		dmaSyncers.emplace_back(plane.fd, libcamera::DmaSyncer::SyncType::Read);
 
 	switch (format_) {
 	case libcamera::formats::NV12:

@@ -69,6 +69,16 @@ libcamera_deps = []
 libatomic = cc.find_library('atomic', required : false)
 libthreads = dependency('threads')
 
+libgbm = cc.find_library('gbm', required: false)
+gbm_works = cc.check_header('gbm.h', required: false)
+
+if libgbm.found() and gbm_works
+    config_h.set('HAVE_GBM', 1)
+    libcamera_internal_sources += files([
+        'gbm.cpp',
+    ])
+endif
+
 subdir('base')
 subdir('converter')
 subdir('ipa')
@@ -176,6 +186,7 @@ libcamera_deps += [
     libcamera_base_private,
     libcrypto,
     libdl,
+    libgbm,
     liblttng,
     libudev,
     libyaml,

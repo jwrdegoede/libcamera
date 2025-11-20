@@ -67,6 +67,11 @@ struct DebayerParams {
 	 * Gamma value as provided by the IPA
 	 */
 	float gamma;			/**< Gamma for GPUISP */
+
+	/*
+	 * Contrast
+	 */
+	float contrast;			/**< Contrast value for GPUISP */
 };
 
 } /* namespace libcamera */

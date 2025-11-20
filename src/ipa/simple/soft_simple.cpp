@@ -137,6 +137,12 @@ int IPASoftSimple::init(const IPASettings &settings,
 	if (ret)
 		return ret;
 
+	if (context_.gpuIspEnabled && !data->contains("ccm")) {
+		ret = createSelfEnumeratingAlgorithm(context_, std::string("Ccm"));
+		if (ret)
+			return ret;
+	}
+
 	*ccmEnabled = context_.ccmEnabled;
 
 	params_ = nullptr;

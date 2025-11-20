@@ -70,6 +70,47 @@ public:
 		factories().push_back(factory);
 	}
 
+	/**
+	 * \fn int Module::createSelfEnumeratingAlgorithm(Context &context, const std::string &name)
+	 * \brief Create and initialise a self-enumerating algorithm by name
+	 * 
+	 * This function creates an algorithm instance from the registered algorithm
+	 * factories using only the algorithm name, without requiring YAML configuration
+	 * data.
+	 * 
+	 * This is useful for algorithms that don't require external configuration
+	 * parameters and can self-configure or use default values.
+	 * 
+	 * \param[in] context The IPA context to pass to the algorithm's init function
+	 * \param[in] name The name of the algorithm to instantiate
+	 * 
+	 * \return 0 on success, negative errno value on failure:
+	 *         -EINVAL if the algorithm is not found in the factory registry
+	 *         Other negative values if algorithm initialisation fails
+	 */
+	int createSelfEnumeratingAlgorithm(Context &context, const std::string &name)
+	{
+		std::unique_ptr<Algorithm<Module>> algo = createAlgorithm(name);
+		if (!algo) {
+			LOG(IPAModuleAlgo, Error)
+				<< "Algorithm '" << name << "' not found";
+			return -EINVAL;
+		}
+
+		int ret = algo->init(context);
+		if (ret) {
+			LOG(IPAModuleAlgo, Error)
+				<< "Algorithm '" << name << "' failed to initialize";
+			return ret;
+		}
+
+		LOG(IPAModuleAlgo, Debug)
+			<< "Instantiated algorithm '" << name << "'";
+
+		algorithms_.push_back(std::move(algo));
+		return 0;
+	}
+
 private:
 	int createAlgorithm(Context &context, const YamlObject &data)
 	{

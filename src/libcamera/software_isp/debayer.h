@@ -118,7 +118,7 @@ private:
 protected:
 	void setParams(DebayerParams &params);
 	void dmaSyncBegin(std::vector<DmaSyncer> &dmaSyncers, FrameBuffer *input, FrameBuffer *output);
-	bool isStandardBayerOrder(BayerFormat::Order order);
+	static bool isStandardBayerOrder(BayerFormat::Order order);
 };
 
 } /* namespace libcamera */

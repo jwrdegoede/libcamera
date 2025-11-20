@@ -130,12 +130,18 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 		}
 	}
 
+	bool gpuIspEnabled;
+
 #if HAVE_DEBAYER_EGL
-	if (!softISPMode || !strcmp(softISPMode, "gpu"))
+	if (!softISPMode || !strcmp(softISPMode, "gpu")) {
 		debayer_ = std::make_unique<DebayerEGL>(std::move(stats), configuration);
+		gpuIspEnabled = true;
+	}
 #endif
-	if (!debayer_)
+	if (!debayer_) {
 		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), configuration);
+		gpuIspEnabled = false;
+	}
 
 	if (!debayer_) {
 		LOG(SoftwareIsp, Error) << "Failed to create Debayer object";
@@ -173,7 +179,8 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 sensorInfo,
 			 sensor->controls(),
 			 ipaControls,
-			 &ccmEnabled_);
+			 &ccmEnabled_,
+			 &gpuIspEnabled);
 	if (ret) {
 		LOG(SoftwareIsp, Error) << "IPA init failed";
 		debayer_.reset();

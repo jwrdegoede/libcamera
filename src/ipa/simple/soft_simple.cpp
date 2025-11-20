@@ -56,7 +56,8 @@ public:
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls,
-		 bool *ccmEnabled) override;
+		 bool *ccmEnabled,
+		 bool *gpuIspEnabled) override;
 	int configure(const IPAConfigInfo &configInfo) override;
 
 	int start() override;
@@ -96,7 +97,8 @@ int IPASoftSimple::init(const IPASettings &settings,
 			const IPACameraSensorInfo &sensorInfo,
 			const ControlInfoMap &sensorControls,
 			ControlInfoMap *ipaControls,
-			bool *ccmEnabled)
+			bool *ccmEnabled,
+			bool *gpuIspEnabled)
 {
 	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
 	if (!camHelper_) {
@@ -106,6 +108,7 @@ int IPASoftSimple::init(const IPASettings &settings,
 	}
 
 	context_.sensorInfo = sensorInfo;
+	context_.gpuIspEnabled = *gpuIspEnabled;
 
 	/* Load the tuning data file */
 	File file(settings.configurationFile);

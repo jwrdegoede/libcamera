@@ -163,5 +163,9 @@ void main(void) {
 	rgb.b = texture2D(blue_param, vec2(rgb.b, 0.5)).b;
 #endif
 
-    gl_FragColor.rgb = rgb;
+#if defined (SWAP_BLUE)
+	gl_FragColor = vec4(rgb.bgr, 1.0);
+#else
+	gl_FragColor = vec4(rgb, 1.0);
+#endif
 }

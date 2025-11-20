@@ -15,6 +15,7 @@
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/thread.h>
+#include <libcamera/base/utils.h>
 
 #include <libcamera/controls.h>
 #include <libcamera/formats.h>
@@ -25,6 +26,9 @@
 #include "libcamera/internal/software_isp/debayer_params.h"
 
 #include "debayer_cpu.h"
+#if HAVE_DEBAYER_EGL
+#include "debayer_egl.h"
+#endif
 
 /**
  * \file software_isp.cpp
@@ -117,7 +121,20 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
-	debayer_ = std::make_unique<DebayerCpu>(std::move(stats), configuration);
+#if HAVE_DEBAYER_EGL
+	const char *softISPMode = utils::secure_getenv("LIBCAMERA_SOFTISP_MODE");
+
+	if (softISPMode && !strcmp(softISPMode, "gpu"))
+		debayer_ = std::make_unique<DebayerEGL>(std::move(stats), configuration);
+#endif
+	if (!debayer_)
+		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), configuration);
+
+	if (!debayer_) {
+		LOG(SoftwareIsp, Error) << "Failed to create Debayer object";
+		return;
+	}
+
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 

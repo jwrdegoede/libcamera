@@ -367,6 +367,9 @@ int SoftwareIsp::start()
  */
 void SoftwareIsp::stop()
 {
+	debayer_->invokeMethod(&Debayer::stop,
+			       ConnectionTypeBlocking);
+
 	ispWorkerThread_.exit();
 	ispWorkerThread_.wait();
 	ispWorkerThread_.removeMessages(debayer_.get());

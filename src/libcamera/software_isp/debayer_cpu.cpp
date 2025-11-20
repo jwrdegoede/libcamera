@@ -788,6 +788,16 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	inputBufferReady.emit(input);
 }
 
+/**
+ * \fn void Debayer::stop()
+ * \brief Stop the debayering process and perform cleanup
+ *
+ * In the DebayerCPU case this is an empty stub function but
+ * for the GPU case this does something useful. The stub here is to
+ * ensure the right version of the virtual gets called.
+ */
+void DebayerCpu::stop() {}
+
 SizeRange DebayerCpu::sizes(PixelFormat inputFormat, const Size &inputSize)
 {
 	Size patternSize = this->patternSize(inputFormat);

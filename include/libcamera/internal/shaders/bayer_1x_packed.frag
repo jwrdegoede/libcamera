@@ -71,6 +71,19 @@ uniform sampler2D blue_param;
 uniform mat3 ccm;
 uniform vec3 blacklevel;
 uniform float gamma;
+uniform float contrast;
+
+float apply_contrast(float normalise, float contrast_in)
+{
+	// Convert 0..2 contrast to 0..infinity; avoid actual infinity at tan(pi/2)
+	float contrastExp = tan(clamp(contrast_in * 0.78539816339744830962, 0.0, 1.5707963267948966 - 0.00001));
+
+	// Apply simple S-curve
+	if (normalise < 0.5)
+		return 0.5 * pow(normalise / 0.5, contrastExp);
+	else
+		return 1.0 - 0.5 * pow((1.0 - normalise) / 0.5, contrastExp);
+}
 
 void main(void)
 {
@@ -265,6 +278,12 @@ void main(void)
 	rgb.r = (rin * ccm[0][0]) + (gin * ccm[0][1]) + (bin * ccm[0][2]);
 	rgb.g = (rin * ccm[1][0]) + (gin * ccm[1][1]) + (bin * ccm[1][2]);
 	rgb.b = (rin * ccm[2][0]) + (gin * ccm[2][1]) + (bin * ccm[2][2]);
+
+	/* Contrast */
+	rgb = clamp(rgb, 0.0, 1.0);
+	rgb.r = apply_contrast(rgb.r, contrast);
+	rgb.g = apply_contrast(rgb.g, contrast);
+	rgb.b = apply_contrast(rgb.b, contrast);
 
 	/* Apply gamma after colour correction */
 	rgb = pow(rgb, vec3(gamma));

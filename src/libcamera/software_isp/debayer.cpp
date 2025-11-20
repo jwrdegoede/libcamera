@@ -19,6 +19,12 @@ namespace libcamera {
  */
 
 /**
+ * \fn Debayer::Debayer(const GlobalConfiguration &configuration)
+ * \brief Construct a Debayer object
+ * \param[in] configuration Global configuration reference
+ */
+
+/**
  * \var DebayerParams::kRGBLookupSize
  * \brief Size of a color lookup table
  */

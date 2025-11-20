@@ -69,6 +69,7 @@ uniform sampler2D red_param;
 uniform sampler2D green_param;
 uniform sampler2D blue_param;
 uniform mat3 ccm;
+uniform vec3 blacklevel;
 
 void main(void)
 {
@@ -217,6 +218,9 @@ void main(void)
 			vec3(patterns.wz, C));
 
 #if defined(APPLY_CCM_PARAMETERS)
+
+	rgb = rgb - blacklevel;
+
 	/*
 	 *   CCM is a 3x3 in the format
 	 *

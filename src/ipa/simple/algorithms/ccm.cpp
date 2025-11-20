@@ -42,6 +42,24 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
 	return 0;
 }
 
+int Ccm::init([[maybe_unused]] IPAContext &context)
+{
+	/* Initialize with identity CCM at standard D65 color temperature */
+	float identity[] = { 1, 0, 0,
+			     0, 1, 0,
+			     0, 0, 1 };
+	Matrix<float, 3, 3> identityMatrix(identity);
+
+	std::map<unsigned int, Matrix<float, 3, 3>> ccmData;
+	ccmData[6500] = identityMatrix;
+
+	ccm_ = Interpolator<Matrix<float, 3, 3>>(std::move(ccmData));
+
+	context.ccmEnabled = true;
+	context.ctrlMap[&controls::Saturation] = ControlInfo(0.0f, 2.0f, 1.0f);
+	return 0;
+}
+
 int Ccm::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {

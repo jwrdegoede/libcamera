@@ -32,6 +32,11 @@ public:
 		return 0;
 	}
 
+	virtual int init([[maybe_unused]] typename Module::Context &context)
+	{
+		return 0;
+	}
+
 	virtual int configure([[maybe_unused]] typename Module::Context &context,
 			      [[maybe_unused]] const typename Module::Config &configInfo)
 	{

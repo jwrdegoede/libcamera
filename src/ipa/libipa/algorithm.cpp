@@ -38,7 +38,7 @@ namespace ipa {
  */
 
 /**
- * \fn Algorithm::init()
+ * \fn Algorithm::init(typename Module::Context &context, const YamlObject &tuningData)
  * \brief Initialize the Algorithm with tuning data
  * \param[in] context The shared IPA context
  * \param[in] tuningData The tuning data for the algorithm
@@ -48,6 +48,17 @@ namespace ipa {
  * data for algorithm.
  *
  * \return 0 if successful, an error code otherwise
+ */
+
+/**
+ * \fn Algorithm::init(typename Module::Context &context)
+ * \brief Initialize the algorithm with default parameters
+ *
+ * This method is called when no tuning data is available. The algorithm
+ * should initialize with sensible default values.
+ *
+ * \param context The IPA context containing algorithm state
+ * \return 0 on success, negative error code on failure
  */
 
 /**

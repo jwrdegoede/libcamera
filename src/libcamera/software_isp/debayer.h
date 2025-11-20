@@ -111,6 +111,9 @@ private:
 	 * Bayer formats (BGGR, GRBG, GBRG, RGGB) this is typically 2x2 pixels.
 	 */
 	virtual Size patternSize(PixelFormat inputFormat) = 0;
+
+protected:
+	void setParams(DebayerParams &params);
 };
 
 } /* namespace libcamera */

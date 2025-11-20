@@ -265,6 +265,8 @@ int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 	if (ret < 0)
 		return ret;
 
+	ispWorkerThread_.start();
+
 	return debayer_->configure(inputCfg, outputCfgs, ccmEnabled_);
 }
 
@@ -346,7 +348,6 @@ int SoftwareIsp::start()
 	if (ret)
 		return ret;
 
-	ispWorkerThread_.start();
 	return 0;
 }
 

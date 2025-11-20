@@ -62,6 +62,11 @@ struct DebayerParams {
 	 * Per frame blacklevel gains calculated by the IPA
 	 */
 	RGB<float> blackLevel;		/**< Blacklevel gains for GPUISP */
+
+	/*
+	 * Gamma value as provided by the IPA
+	 */
+	float gamma;			/**< Gamma for GPUISP */
 };
 
 } /* namespace libcamera */

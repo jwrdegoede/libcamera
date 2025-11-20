@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 #include "libcamera/internal/matrix.h"
+#include "libcamera/internal/vector.h"
 
 namespace libcamera {
 
@@ -56,6 +57,11 @@ struct DebayerParams {
 	 * Per frame CCM values as calcualted by the IPA
 	 */
 	Matrix<float, 3, 3> ccm;	/**< Per frame colour correction matrix for GPUISP */
+
+	/*
+	 * Per frame blacklevel gains calculated by the IPA
+	 */
+	RGB<float> blackLevel;		/**< Blacklevel gains for GPUISP */
 };
 
 } /* namespace libcamera */

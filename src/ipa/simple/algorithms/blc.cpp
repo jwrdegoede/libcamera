@@ -47,6 +47,19 @@ int BlackLevel::configure(IPAContext &context,
 	return 0;
 }
 
+void BlackLevel::prepare(IPAContext &context,
+			 [[maybe_unused]] const uint32_t frame,
+			 [[maybe_unused]] IPAFrameContext &frameContext,
+			 DebayerParams *params)
+{
+	const std::array<float, 3> blackLevel { context.activeState.blc.level / 255.0f,
+						context.activeState.blc.level / 255.0f,
+						context.activeState.blc.level / 255.0f };
+
+	/* Latch the blacklevel gain so GPUISP can apply. */
+	params->blackLevel = RGB<float>(blackLevel);
+}
+
 void BlackLevel::process(IPAContext &context,
 			 [[maybe_unused]] const uint32_t frame,
 			 IPAFrameContext &frameContext,

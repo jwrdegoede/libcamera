@@ -521,6 +521,11 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
  */
 void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input)
 {
+	if (frame % kStatPerNumFrames) {
+		finishFrame(frame, bufferId);
+		return;
+	}
+
 	bench_.startFrame();
 	startFrame(frame);
 

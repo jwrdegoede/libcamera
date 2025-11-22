@@ -75,7 +75,7 @@ public:
 	 */
 	eGLImage(uint32_t width, uint32_t height, uint32_t bpp, GLenum texture_unit, uint32_t texture_unit_uniform_id)
 	{
-		uint32_t stride = libcamera::utils::alignUp(width * bpp, 256);
+		uint32_t stride = libcamera::utils::alignUp(width * bpp / 8, 256);
 
 		init(width, height, bpp, stride, texture_unit, texture_unit_uniform_id);
 	}

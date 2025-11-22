@@ -455,7 +455,7 @@ void DebayerEGL::setShaderVariableValues(DebayerParams &params)
 			      (GLfloat)height_ };
 	GLfloat Step[] = { static_cast<float>(bytesPerPixel_) / (inputConfig_.stride - 1),
 			   1.0f / (height_ - 1) };
-	GLfloat Stride = 1.0f;
+	GLfloat Stride = (GLfloat)width_ / (inputConfig_.stride / bytesPerPixel_);
 	GLfloat scaleX = (GLfloat)window_.width / width_;
 	GLfloat scaleY = (GLfloat)window_.height / height_;
 	GLfloat transX = -(1.0f - scaleX);

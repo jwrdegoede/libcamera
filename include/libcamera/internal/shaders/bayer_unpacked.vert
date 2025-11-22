@@ -40,8 +40,10 @@ varying vec4            xCoord;
 /** of the adjacent pixels.*/
 varying vec4            yCoord;
 
+uniform float stride_factor;
+
 void main(void) {
-    center.xy = textureIn;
+    center.xy = vec2(textureIn.x * stride_factor, textureIn.y);
     center.zw = textureIn * tex_size + tex_bayer_first_red;
 
     xCoord = center.x + vec4(-2.0 * tex_step.x,

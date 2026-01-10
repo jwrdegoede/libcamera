@@ -102,7 +102,7 @@ public:
 
 	int initEGLContext();
 
-	int createInputDMABufTexture2D(eGLImage &eglImage, int fd);
+	int createInputDMABufTexture2D(eGLImage &eglImage, int fd, GLint format, uint32_t width, uint32_t height);
 	int createOutputDMABufTexture2D(eGLImage &eglImage, int fd);
 	void destroyDMABufTexture(eGLImage &eglImage);
 	void createTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint32_t height, void *data);
@@ -135,7 +135,7 @@ private:
 			  unsigned int shaderDataLen,
 			  Span<const std::string> shaderEnv);
 
-	int createDMABufTexture2D(eGLImage &eglImage, int fd, bool output);
+	int createDMABufTexture2D(eGLImage &eglImage, int fd, uint32_t drm_format, uint32_t width, uint32_t height, bool output);
 
 	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
 	PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;

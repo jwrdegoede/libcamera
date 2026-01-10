@@ -506,13 +506,22 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 	return;
 }
 
-int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParams &params)
+int DebayerEGL::debayerGPU(FrameBuffer *input, int out_fd, const DebayerParams &params)
 {
 	/* eGL context switch */
 	egl_.makeCurrent();
 
 	/* Create a standard texture input */
-	egl_.createTexture2D(*eglImageBayerIn_, glFormat_, inputConfig_.stride / bytesPerPixel_, height_, in.planes()[0].data());
+	if (egl_.createInputDMABufTexture2D(*eglImageBayerIn_, input->planes()[0].fd.get(), glFormat_, inputConfig_.stride / bytesPerPixel_, height_) != 0) {
+		MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
+		if (!in.isValid()) {
+			LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
+			return -ENODEV;
+		}
+
+		LOG(Debayer, Debug) << "Importing input buffer with DMABuf import failed, falling back to upload";
+		egl_.createTexture2D(*eglImageBayerIn_, glFormat_, inputConfig_.stride / bytesPerPixel_, height_, in.planes()[0].data());
+	}
 
 	/* Generate the output render framebuffer as render to texture */
 	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, out_fd);
@@ -547,13 +556,7 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	metadata.sequence = input->metadata().sequence;
 	metadata.timestamp = input->metadata().timestamp;
 
-	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
-	if (!in.isValid()) {
-		LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
-		goto error;
-	}
-
-	if (debayerGPU(in, output->planes()[0].fd.get(), params)) {
+	if (debayerGPU(input, output->planes()[0].fd.get(), params)) {
 		LOG(Debayer, Error) << "debayerGPU failed";
 		goto error;
 	}

@@ -74,7 +74,7 @@ private:
 	int getShaderVariableLocations();
 	void setShaderVariableValues(const DebayerParams &params);
 	void configureTexture(GLuint &texture);
-	int debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParams &params);
+	int debayerGPU(FrameBuffer *input, int out_fd, const DebayerParams &params);
 
 	/* Shader program identifiers */
 	GLuint vertexShaderId_ = 0;

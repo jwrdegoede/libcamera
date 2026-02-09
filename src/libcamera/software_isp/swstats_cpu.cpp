@@ -16,6 +16,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/mapped_framebuffer.h"
 
 namespace libcamera {
@@ -544,8 +545,13 @@ void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *in
 		return;
 	}
 
+	std::vector<DmaSyncer> dmaSyncers;
+
 	bench_.startFrame();
 	startFrame(frame);
+
+	for (const FrameBuffer::Plane &plane : input->planes())
+		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Read);
 
 	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
 	if (!in.isValid()) {
@@ -554,6 +560,8 @@ void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *in
 	}
 
 	(this->*processFrame_)(in);
+
+	dmaSyncers.clear();
 	finishFrame(frame, bufferId);
 	bench_.finishFrame();
 }

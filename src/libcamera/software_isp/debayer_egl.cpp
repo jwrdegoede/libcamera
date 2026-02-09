@@ -508,11 +508,14 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 
 int DebayerEGL::debayerGPU(FrameBuffer *input, int out_fd, const DebayerParams &params)
 {
+	std::vector<DmaSyncer> dmaSyncers;
+
 	/* eGL context switch */
 	egl_.makeCurrent();
 
 	/* Create a standard texture input */
 	if (egl_.createInputDMABufTexture2D(*eglImageBayerIn_, input->planes()[0].fd.get(), glFormat_, inputConfig_.stride / bytesPerPixel_, height_) != 0) {
+		dmaSyncBegin(dmaSyncers, input, nullptr);
 		MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
 		if (!in.isValid()) {
 			LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
@@ -539,16 +542,13 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, int out_fd, const DebayerParams &
 		egl_.syncOutput();
 	}
 
+	dmaSyncers.clear();
 	return 0;
 }
 
 void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
 {
 	bench_.startFrame();
-
-	std::vector<DmaSyncer> dmaSyncers;
-
-	dmaSyncBegin(dmaSyncers, input, nullptr);
 
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();
@@ -567,7 +567,6 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 
 	/* Calculate stats for the whole frame */
 	stats_->processFrame(frame, 0, input);
-	dmaSyncers.clear();
 
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);

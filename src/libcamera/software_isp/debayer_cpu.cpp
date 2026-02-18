@@ -603,6 +603,11 @@ int DebayerCpu::configure(const StreamConfiguration &inputCfg,
 	}
 	threads_[i]->configure(yStart, window_.height);
 
+	LOG(Debayer, Info)
+		<< "Input " << inputCfg.size
+		<< "-" << BayerFormat::fromPixelFormat(inputCfg.pixelFormat)
+		<< " stride " << inputCfg.stride;
+
 	return 0;
 }
 

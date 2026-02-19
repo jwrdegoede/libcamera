@@ -215,6 +215,7 @@ wanted_pipelines = get_option('pipelines')
 arch_arm = ['arm', 'aarch64']
 arch_x86 = ['x86', 'x86_64']
 pipelines_support = {
+    'camss':        ['any'],
     'imx8-isi':     arch_arm,
     'ipu3':         arch_x86,
     'mali-c55':     arch_arm,

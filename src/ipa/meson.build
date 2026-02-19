@@ -25,6 +25,7 @@ subdir('libipa')
 ipa_sign = files('ipa-sign.sh')
 
 supported_ipas = {
+    'camss':      'softisp',
     'ipu3':       'ipu3',
     'mali-c55':   'mali-c55',
     'rkisp1':     'rkisp1',

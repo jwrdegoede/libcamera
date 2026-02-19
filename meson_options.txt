@@ -58,6 +58,7 @@ option('pipelines',
         choices : [
             'all',
             'auto',
+            'camss',
             'imx8-isi',
             'ipu3',
             'mali-c55',

@@ -265,7 +265,6 @@ static const SimplePipelineInfo supportedDevices[] = {
 	{ "j721e-csi2rx", {}, true, SoftwareIsp::SoftwareIspFlag::AllocCmaDmaBuffers },
 	{ "mtk-seninf", { { "mtk-mdp", 3 } }, false, {} },
 	{ "mxc-isi", {}, false, {} },
-	{ "qcom-camss", {}, true, {} },
 	{ "sun6i-csi", {}, false, {} },
 };
 

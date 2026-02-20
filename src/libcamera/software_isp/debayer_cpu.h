@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <libcamera/base/object.h>
+#include <libcamera/base/mutex.h>
 
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/global_configuration.h"
@@ -41,6 +42,8 @@ public:
 	std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 	void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params);
+	int start();
+	void stop();
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
 	const SharedFD &getStatsFD() { return stats_->getStatsFD(); }
 
@@ -147,6 +150,9 @@ private:
 	std::unique_ptr<SwStatsCpu> stats_;
 	unsigned int xShift_; /* Offset of 0/1 applied to window_.x */
 
+	unsigned int workPending_ LIBCAMERA_TSA_GUARDED_BY(workPendingMutex_);
+	Mutex workPendingMutex_;
+	ConditionVariable workPendingCv_;
 	std::vector<std::unique_ptr<DebayerCpuThread>>threads_;
 };
 

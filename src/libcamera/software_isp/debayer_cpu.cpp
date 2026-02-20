@@ -18,6 +18,8 @@
 
 #include <linux/dma-buf.h>
 
+#include <libcamera/base/thread.h>
+
 #include <libcamera/formats.h>
 
 #include "libcamera/internal/bayer_format.h"
@@ -50,13 +52,15 @@ public:
 	unsigned int lineBufferIndex_;
 	std::vector<uint8_t> lineBuffers_[DebayerCpu::kMaxLineBuffers];
 	bool enableInputMemcpy_;
+	Thread worker_;
 };
 
 DebayerCpuThread::DebayerCpuThread(DebayerCpu *debayer, unsigned int threadIndex,
 				   bool enableInputMemcpy)
 	: debayer_(debayer), threadIndex_(threadIndex),
-	  enableInputMemcpy_(enableInputMemcpy)
+	  enableInputMemcpy_(enableInputMemcpy), worker_("DebayerWorker")
 {
+	this->moveToThread(&worker_);
 }
 
 /**
@@ -88,8 +92,10 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const GlobalConfigurat
 	bool enableInputMemcpy =
 		configuration.option<bool>({ "software_isp", "copy_input_buffer" }).value_or(true);
 
-	/* Just one thread object for now, which will be called inline rather then async */
-	threads_.resize(1);
+	unsigned int threadCount =
+		configuration.option<unsigned int>({ "software_isp", "threads" }).value_or(2);
+	threadCount = std::clamp(threadCount, 1u, 8u);
+	threads_.resize(threadCount);
 
 	for (unsigned int i = 0; i < threads_.size(); i++)
 		threads_[i] = new DebayerCpuThread(this, i, enableInputMemcpy);
@@ -714,6 +720,11 @@ void DebayerCpuThread::process(uint32_t frame, const uint8_t *src, uint8_t *dst)
 		process2(frame, src, dst);
 	else
 		process4(frame, src, dst);
+
+	debayer_->workPendingMutex_.lock();
+	debayer_->workPending_ &= ~(1 << threadIndex_);
+	debayer_->workPendingMutex_.unlock();
+	debayer_->workPendingCv_.notify_one();
 }
 
 void DebayerCpuThread::process2(uint32_t frame, const uint8_t *src, uint8_t *dst)
@@ -953,7 +964,24 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 
 	stats_->startFrame(frame);
 
-	threads_[0]->process(frame, in.planes()[0].data(), out.planes()[0].data());
+	workPendingMutex_.lock();
+	workPending_ = (1 << threads_.size()) - 1;
+	workPendingMutex_.unlock();
+
+	for (unsigned int i = 0; i < threads_.size(); i++)
+		threads_[i]->invokeMethod(&DebayerCpuThread::process,
+					  ConnectionTypeQueued, frame,
+					  in.planes()[0].data(), out.planes()[0].data());
+
+	{
+		MutexLocker locker(workPendingMutex_);
+
+		auto workPending = ([&]() LIBCAMERA_TSA_REQUIRES(workPendingMutex_) {
+			return workPending_ == 0;
+		});
+
+		workPendingCv_.wait(locker, workPending);
+	}
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
@@ -970,6 +998,23 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	stats_->finishFrame(frame, 0);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
+}
+
+int DebayerCpu::start()
+{
+	for (unsigned int i = 0; i < threads_.size(); i++)
+		threads_[i]->worker_.start();
+
+	return 0;
+}
+
+void DebayerCpu::stop()
+{
+	for (unsigned int i = 0; i < threads_.size(); i++)
+		threads_[i]->worker_.exit();
+
+	for (unsigned int i = 0; i < threads_.size(); i++)
+		threads_[i]->worker_.wait();
 }
 
 SizeRange DebayerCpu::sizes(PixelFormat inputFormat, const Size &inputSize)

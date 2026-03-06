@@ -191,8 +191,7 @@ int CIO2Device::configure(const Size &size, const Transform &transform,
 	 * Apply the selected format to the sensor, the CSI-2 receiver and
 	 * the CIO2 output device.
 	 */
-	std::vector<unsigned int> mbusCodes = utils::map_keys(mbusCodesToPixelFormat);
-	sensorFormat = getSensorFormat(mbusCodes, size);
+	sensorFormat = getSensorFormat(size);
 	ret = sensor_->setFormat(&sensorFormat, transform);
 	if (ret)
 		return ret;
@@ -227,8 +226,7 @@ StreamConfiguration CIO2Device::generateConfiguration(Size size) const
 		size = sensor_->resolution();
 
 	/* Query the sensor static information for closest match. */
-	std::vector<unsigned int> mbusCodes = utils::map_keys(mbusCodesToPixelFormat);
-	V4L2SubdeviceFormat sensorFormat = getSensorFormat(mbusCodes, size);
+	V4L2SubdeviceFormat sensorFormat = getSensorFormat(size);
 	if (!sensorFormat.code) {
 		LOG(IPU3, Error) << "Sensor does not support mbus code";
 		return {};
@@ -273,8 +271,7 @@ StreamConfiguration CIO2Device::generateConfiguration(Size size) const
  * \return The best sensor output format matching the desired media bus codes
  * and size on success, or an empty format otherwise.
  */
-V4L2SubdeviceFormat CIO2Device::getSensorFormat(const std::vector<unsigned int> &mbusCodes,
-						const Size &size) const
+V4L2SubdeviceFormat CIO2Device::getSensorFormat(const Size &size) const
 {
 	unsigned int desiredArea = size.width * size.height;
 	unsigned int bestArea = std::numeric_limits<unsigned int>::max();
@@ -285,7 +282,10 @@ V4L2SubdeviceFormat CIO2Device::getSensorFormat(const std::vector<unsigned int> 
 	Size bestSize;
 	uint32_t bestCode = 0;
 
-	for (unsigned int code : mbusCodes) {
+	for (unsigned int code : sensor_->mbusCodes()) {
+		if (mbusCodesToPixelFormat.find(code) == mbusCodesToPixelFormat.end())
+			continue;
+
 		const auto sizes = sensor_->sizes(code);
 		if (!sizes.size())
 			continue;

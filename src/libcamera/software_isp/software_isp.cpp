@@ -127,7 +127,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 
-	ipa_ = IPAManager::createIPA<ipa::soft::IPAProxySoft>(pipe, 0, 0);
+	ipa_ = IPAManager::createIPA<ipa::soft::IPAProxySoft>(pipe, "simple", 0, 0);
 	if (!ipa_) {
 		LOG(SoftwareIsp, Error)
 			<< "Creating IPA for software ISP failed";

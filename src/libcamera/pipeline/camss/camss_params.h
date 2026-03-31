@@ -22,7 +22,7 @@ namespace libcamera {
 
 namespace ipa::camss {
 
-enum class CamssBlocks {
+enum class CamssBlocks : uint16_t {
 	AwbGains,
 	ChromaEnh,
 	ColorCorrect,

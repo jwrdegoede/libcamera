@@ -38,6 +38,7 @@
 #include "camss_csi.h"
 #include "camss_frames.h"
 #include "camss_isp.h"
+#include "camss_isp_ope.h"
 #include "camss_isp_raw.h"
 #include "camss_isp_soft.h"
 
@@ -525,12 +526,18 @@ bool PipelineHandlerCamss::match(DeviceEnumerator *enumerator)
 		data->delayedCtrls_ =
 			std::make_unique<DelayedControls>(sensor->device(), params);
 
-		data->processedIsp_ = std::make_unique<CamssIspSoft>(this, sensor,
-								     &data->frameInfos_,
-								     &data->controlInfo_);
-		if (!data->processedIsp_->isValid()) {
-			LOG(Camss, Error) << "Failed to create software ISP";
-			continue;
+		data->processedIsp_ = CamssIspOpe::match(this, enumerator, sensor,
+							 &data->frameInfos_,
+							 &data->controlInfo_);
+		if (data->processedIsp_ == nullptr) {
+			data->processedIsp_ =
+				std::make_unique<CamssIspSoft>(this, sensor,
+							       &data->frameInfos_,
+							       &data->controlInfo_);
+			if (!data->processedIsp_->isValid()) {
+				LOG(Camss, Error) << "Failed to create software ISP";
+				continue;
+			}
 		}
 
 		data->rawIsp_ = std::make_unique<CamssIspRaw>(this, sensor,

@@ -818,6 +818,7 @@ bool V4L2M2MConverter::supportsRequests()
 static std::initializer_list<std::string> compatibles = {
 	"mtk-mdp",
 	"pxp",
+	"qcom-camss-ope",
 };
 
 REGISTER_CONVERTER("v4l2_m2m", V4L2M2MConverter, compatibles)

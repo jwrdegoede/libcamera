@@ -72,7 +72,7 @@ LOG_DEFINE_CATEGORY(Pipeline)
 PipelineHandler::PipelineHandler(CameraManager *manager,
 				 unsigned int maxQueuedRequestsDevice)
 	: manager_(manager), maxQueuedRequestsDevice_(maxQueuedRequestsDevice),
-	  useCount_(0)
+	  lockOnAcquire_(true), useCount_(0)
 {
 }
 
@@ -170,7 +170,7 @@ PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
  */
 bool PipelineHandler::acquire(Camera *camera)
 {
-	if (useCount_ == 0) {
+	if (useCount_ == 0 && lockOnAcquire_) {
 		for (std::shared_ptr<MediaDevice> &media : mediaDevices_) {
 			if (!media->lock()) {
 				unlockMediaDevices();
@@ -180,7 +180,7 @@ bool PipelineHandler::acquire(Camera *camera)
 	}
 
 	if (!acquireDevice(camera)) {
-		if (useCount_ == 0)
+		if (useCount_ == 0 && lockOnAcquire_)
 			unlockMediaDevices();
 
 		return false;
@@ -212,7 +212,7 @@ void PipelineHandler::release(Camera *camera)
 
 	releaseDevice(camera);
 
-	if (useCount_ == 1)
+	if (useCount_ == 1 && lockOnAcquire_)
 		unlockMediaDevices();
 
 	--useCount_;

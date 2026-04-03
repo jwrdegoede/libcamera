@@ -50,6 +50,9 @@ public:
 	PixelFormat mbusCodeToPixelFormat(unsigned int code) const;
 	unsigned int PixelFormatToMbusCode(const PixelFormat &format) const;
 
+	bool acquireDevice();
+	void releaseDevice();
+
 	int start();
 	void stop();
 

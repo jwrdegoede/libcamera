@@ -148,6 +148,43 @@ void V4L2Device::close()
 }
 
 /**
+ * \brief Lock the device to prevent it from being used by other instances of
+ * libcamera
+ *
+ * Multiple instances of libcamera might be running on the same system, at the
+ * same time. To allow the different instances to coexist, system resources like
+ * v4l2 devices must be accessible for enumerating the cameras they provide at
+ * all times, while still allowing an instance to lock a resource while it
+ * prepares to actively use a camera from the resource.
+ *
+ * \return True if the device could be locked, false otherwise
+ * \sa unlock()
+ */
+bool V4L2Device::lock()
+{
+	if (!fd_.isValid())
+		return false;
+
+	if (lockf(fd_.get(), F_TLOCK, 0))
+		return false;
+
+	return true;
+}
+
+/**
+ * \brief Unlock the device and free it for use for libcamera instances
+ *
+ * \sa lock()
+ */
+void V4L2Device::unlock()
+{
+	if (!fd_.isValid())
+		return;
+
+	std::ignore = lockf(fd_.get(), F_ULOCK, 0);
+}
+
+/**
  * \fn V4L2Device::isOpen()
  * \brief Check if the V4L2 device node is open
  * \return True if the V4L2 device node is open, false otherwise

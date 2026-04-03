@@ -111,6 +111,7 @@ protected:
 
 	CameraManager *manager_;
 	const unsigned int maxQueuedRequestsDevice_;
+	bool lockOnAcquire_;
 
 private:
 	void unlockMediaDevices();

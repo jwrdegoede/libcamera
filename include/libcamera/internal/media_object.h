@@ -118,6 +118,7 @@ public:
 	const MediaPad *getPadById(unsigned int id) const;
 
 	int setDeviceNode(const std::string &deviceNode);
+	int disableLinks() const;
 
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(MediaEntity)

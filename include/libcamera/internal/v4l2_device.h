@@ -52,6 +52,9 @@ public:
 
 	void updateControlInfo();
 
+	bool lock();
+	void unlock();
+
 protected:
 	V4L2Device(const std::string &deviceNode);
 	~V4L2Device();

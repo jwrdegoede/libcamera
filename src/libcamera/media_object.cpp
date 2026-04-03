@@ -429,6 +429,33 @@ int MediaEntity::setDeviceNode(const std::string &deviceNode)
 }
 
 /**
+ * \brief Disable all links on the media entity
+ *
+ * Disable all the media entity links, clearing the MEDIA_LNK_FL_ENABLED flag
+ * on links which are not flagged as IMMUTABLE.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaEntity::disableLinks() const
+{
+	for (MediaPad *pad : pads_) {
+		if (!(pad->flags() & MEDIA_PAD_FL_SOURCE))
+			continue;
+
+		for (MediaLink *link : pad->links()) {
+			if (link->flags() & MEDIA_LNK_FL_IMMUTABLE)
+				continue;
+
+			int ret = link->setEnabled(false);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * \brief Construct a MediaEntity
  * \param[in] dev The media device this entity belongs to
  * \param[in] entity The media entity kernel data

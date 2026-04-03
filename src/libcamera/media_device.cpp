@@ -463,19 +463,9 @@ MediaLink *MediaDevice::link(const MediaPad *source, const MediaPad *sink)
 int MediaDevice::disableLinks()
 {
 	for (MediaEntity *entity : entities_) {
-		for (MediaPad *pad : entity->pads()) {
-			if (!(pad->flags() & MEDIA_PAD_FL_SOURCE))
-				continue;
-
-			for (MediaLink *link : pad->links()) {
-				if (link->flags() & MEDIA_LNK_FL_IMMUTABLE)
-					continue;
-
-				int ret = link->setEnabled(false);
-				if (ret)
-					return ret;
-			}
-		}
+		int ret = entity->disableLinks();
+		if (ret)
+			return ret;
 	}
 
 	return 0;

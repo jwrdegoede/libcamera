@@ -52,6 +52,9 @@ public:
 
 	void setIsp(CamssIsp *isp) { isp_ = isp; }
 
+	bool acquireDevice();
+	void releaseDevice();
+
 	int start();
 	void stop();
 

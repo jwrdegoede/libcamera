@@ -70,6 +70,7 @@ public:
 
 	CameraManager *cameraManager() const { return manager_; }
 
+
 protected:
 	void registerCamera(std::shared_ptr<Camera> camera);
 	void hotplugMediaDevice(std::shared_ptr<MediaDevice> media);
@@ -83,6 +84,7 @@ protected:
 
 	CameraManager *manager_;
 	const unsigned int maxQueuedRequestsDevice_;
+	bool lockOnAcquire_;
 
 private:
 	void unlockMediaDevices();

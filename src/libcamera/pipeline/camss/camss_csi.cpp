@@ -285,6 +285,12 @@ int CamssCsiCamera::configure(const StreamConfiguration &cfg, const Transform &t
 	V4L2DeviceFormat outputFormat;
 	int ret;
 
+	for (auto &link : links_) {
+		ret = link.sinkSubdev->entity()->disableLinks();
+		if (ret)
+			return ret;
+	}
+
 	sensorFormat = getSensorFormat(cfg.size, cfg.pixelFormat);
 	/* This updates sensorFormat with the actual established format */
 	ret = sensor_->setFormat(&sensorFormat, transform);
@@ -326,6 +332,24 @@ int CamssCsiCamera::exportBuffers(unsigned int count,
 				  std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	return output_->exportBuffers(count, buffers);
+}
+
+bool CamssCsiCamera::acquireDevice()
+{
+	for (auto &link : links_) {
+		if (!link.sinkSubdev->lock()) {
+			releaseDevice();
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void CamssCsiCamera::releaseDevice()
+{
+	for (auto &link : links_)
+		link.sinkSubdev->unlock();
 }
 
 int CamssCsiCamera::start()
@@ -445,18 +469,6 @@ CamssCsi::Cameras CamssCsi::match(PipelineHandler *pipe, DeviceEnumerator *enume
 
 	camssMediaDev_ = pipe->acquireMediaDevice(enumerator, camssDm);
 	if (!camssMediaDev_)
-		return {};
-
-	/*
-	 * Disable all links that are enabled to start with a clean state,
-	 * CamssCsiCamera::configure() enables links as necessary.
-	 * \todo instead only disable links on used entities, to allow
-	 * 2 separate libcamera instances to drive 2 different sensors.
-	 * This will also require changes to PipelineHandler::acquire() to
-	 * allow a more fine grained version of that locking a list of
-	 * subdevs associated with a Camera instead of the mediactl node.
-	 */
-	if (camssMediaDev_->disableLinks())
 		return {};
 
 	getEntities(phys_, "msm_csiphy%d", kMaxCsiPhys);

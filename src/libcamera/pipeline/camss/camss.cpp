@@ -115,6 +115,8 @@ private:
 		return static_cast<CamssCameraData *>(camera->_d());
 	}
 
+	bool acquireDevice(Camera *camera) override;
+	void releaseDevice(Camera *camera) override;
 	int allocateBuffers(Camera *camera);
 	void freeBuffers(Camera *camera);
 
@@ -287,6 +289,7 @@ CameraConfiguration::Status CamssCameraConfiguration::validate()
 PipelineHandlerCamss::PipelineHandlerCamss(CameraManager *manager)
 	: PipelineHandler(manager), csi_()
 {
+	lockOnAcquire_ = false;
 }
 
 std::unique_ptr<CameraConfiguration>
@@ -377,6 +380,20 @@ int PipelineHandlerCamss::allocateBuffers(Camera *camera)
 void PipelineHandlerCamss::freeBuffers(Camera *camera)
 {
 	cameraData(camera)->isp_->freeBuffers();
+}
+
+bool PipelineHandlerCamss::acquireDevice(Camera *camera)
+{
+	CamssCameraData *data = cameraData(camera);
+
+	return data->csi_->acquireDevice();
+}
+
+void PipelineHandlerCamss::releaseDevice(Camera *camera)
+{
+	CamssCameraData *data = cameraData(camera);
+
+	data->csi_->releaseDevice();
 }
 
 int PipelineHandlerCamss::start(Camera *camera, [[maybe_unused]] const ControlList *controls)

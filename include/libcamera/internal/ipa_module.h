@@ -36,8 +36,8 @@ public:
 
 	IPAInterface *createInterface();
 
-	bool match(PipelineHandler *pipe,
-		   uint32_t minVersion, uint32_t maxVersion) const;
+	bool match(const char *name, uint32_t minVersion,
+		   uint32_t maxVersion) const;
 
 protected:
 	std::string logPrefix() const override;

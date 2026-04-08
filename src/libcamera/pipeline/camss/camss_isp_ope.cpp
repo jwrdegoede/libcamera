@@ -14,11 +14,15 @@
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
+#include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/converter.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
+#include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swstats_cpu.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -40,29 +44,76 @@ LOG_DECLARE_CATEGORY(Camss)
 CamssIspOpe::CamssIspOpe([[maybe_unused]] PipelineHandler *pipe, const CameraSensor *sensor, [[maybe_unused]] ControlInfoMap *ispControls)
 	: sensor_(sensor)
 {
-#if 0
-	swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor, ispControls);
+	sharedParams_ = SharedMemObject<DebayerParams>("softIsp_params");
+	if (!sharedParams_) {
+		LOG(Camss, Error) << "Failed to create shared memory for parameters";
+		return;
+	}
 
-	swIsp_->ispStatsReady.connect(this,
-				      [&](uint32_t frame, uint32_t bufferId) {
-						statsReady.emit(frame, bufferId);
-				      });
-	swIsp_->metadataReady.connect(this,
-				      [&](uint32_t frame, const ControlList &metadata) {
+	const GlobalConfiguration &configuration = pipe->cameraManager()->_d()->configuration();
+
+	stats_ = std::make_unique<SwStatsCpu>(configuration);
+	if (!stats_->isValid()) {
+		LOG(Camss, Error) << "Failed to create SwStatsCpu object";
+		return;
+	}
+
+	stats_->statsReady.connect(this,
+				   [&](uint32_t frame, uint32_t bufferId) {
+					   statsReady.emit(frame, bufferId);
+				   });
+
+	ipa_ = IPAManager::createIPA<ipa::soft::IPAProxySoft>(pipe, "simple", 0, 0);
+	if (!ipa_) {
+		LOG(Camss, Error) << "Creating IPA failed";
+		return;
+	}
+
+	/*
+	 * The API tuning file is made from the sensor name. If the tuning file
+	 * isn't found, fall back to the 'uncalibrated' file.
+	 */
+	std::string ipaTuningFile =
+		ipa_->configurationFile(sensor->model() + ".yaml", "uncalibrated.yaml");
+
+	IPACameraSensorInfo sensorInfo{};
+	int ret = sensor->sensorInfo(&sensorInfo);
+	if (ret) {
+		LOG(Camss, Error) << "Camera sensor information not available";
+		ipa_.reset();
+		return;
+	}
+
+	bool ccmEnabled;
+	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
+			 stats_->getStatsFD(),
+			 sharedParams_.fd(),
+			 sensorInfo,
+			 sensor->controls(),
+			 ispControls,
+			 &ccmEnabled);
+	if (ret) {
+		LOG(Camss, Error) << "IPA init failed";
+		ipa_.reset();
+		return;
+	}
+
+	/* ipa_->saveIspParams signal is ignored because M2M OPE has not params */
+	ipa_->metadataReady.connect(this,
+				    [&](uint32_t frame, const ControlList &metadata) {
 						metadataReady.emit(frame, metadata);
-				      });
-	swIsp_->setSensorControls.connect(this,
-					  [&](const ControlList &sensorControls) {
+				    });
+	ipa_->setSensorControls.connect(this,
+					[&](const ControlList &sensorControls) {
 						setSensorControls.emit(sensorControls);
-					  });
-#endif
+					});
 }
 
 CamssIspOpe::~CamssIspOpe() = default;
 
 bool CamssIspOpe::isValid()
 {
-	return true;
+	return !!ipa_;
 }
 
 StreamConfiguration CamssIspOpe::generateConfiguration(const StreamConfiguration &raw) const
@@ -151,19 +202,39 @@ StreamConfiguration CamssIspOpe::validate(const StreamConfiguration &raw, const 
 int CamssIspOpe::configure(const StreamConfiguration &inputCfg,
 			   const StreamConfiguration &outputCfg)
 {
+	ipa::soft::IPAConfigInfo configInfo;
+	configInfo.sensorControls = sensor_->controls();
+
+	int ret = ipa_->configure(configInfo);
+	if (ret < 0)
+		return ret;
+
+	ret = stats_->configure(inputCfg);
+	if (ret < 0)
+		return ret;
+
+	/* Use 2/3 center of image to reduce CPU load */
+	Rectangle statsWindow;
+	statsWindow.width = inputCfg.size.width * 2 / 3;
+	statsWindow.height = inputCfg.size.height * 2 / 3;
+	statsWindow.x = (inputCfg.size.width - statsWindow.width) / 2;
+	statsWindow.y = (inputCfg.size.height - statsWindow.height) / 2;
+	/* stats_->setWindow() takes care of necessary alignment itself */
+	stats_->setWindow(statsWindow);
+
 	std::vector<std::reference_wrapper<const StreamConfiguration>> outputCfgs;
 	outputCfgs.push_back(outputCfg);
 
-	int ret = converter_->configure(inputCfg, outputCfgs);
+	ret = converter_->configure(inputCfg, outputCfgs);
 	if (ret)
 		return ret;
 
 	converter_->inputBufferReady.connect(this,
-					     [&](FrameBuffer *f) { inputBufferReady.emit(f); });
+					     [&](FrameBuffer *f) {
+						     inputBufferReady.emit(f);
+					     });
 	converter_->outputBufferReady.connect(this,
 					      [&](FrameBuffer *f) {
-						      // HACK FIXME
-						      metadataReady.emit(f->metadata().sequence, {});
 						      outputBufferReady.emit(f);
 					      });
 
@@ -178,30 +249,44 @@ int CamssIspOpe::exportOutputBuffers(const Stream *stream, unsigned int count,
 
 void CamssIspOpe::queueBuffers(Request *request, FrameBuffer *input)
 {
+	ipa_->queueRequest(request->sequence(), request->controls());
+	/* Calculate stats for the whole frame */
+	stats_->processFrame(request->sequence(), 0, input);
+
 	std::map<const Stream *, FrameBuffer *> outputs;
 	for (const auto &[stream, outbuffer] : request->buffers()) {
 		if (stream == &outStream_)
 			outputs[stream] = outbuffer;
 	}
 
-	//	swIsp_->queueRequest(request->sequence(), request->controls());
 	converter_->queueBuffers(input, outputs);
 }
 
-void CamssIspOpe::processStats([[maybe_unused]] const uint32_t frame, [[maybe_unused]] const uint32_t bufferId,
-			       [[maybe_unused]] const ControlList &sensorControls)
+void CamssIspOpe::processStats(const uint32_t frame, const uint32_t bufferId,
+			       const ControlList &sensorControls)
 {
-	//	swIsp_->processStats(frame, bufferId, sensorControls);
+	ipa_->processStats(frame, bufferId, sensorControls);
 }
 
 int CamssIspOpe::start()
 {
-	return converter_->start();
+	int ret = ipa_->start();
+	if (ret)
+		return ret;
+
+	ret = converter_->start();
+	if (ret) {
+		ipa_->stop();
+		return ret;
+	}
+
+	return 0;
 }
 
 void CamssIspOpe::stop()
 {
 	converter_->stop();
+	ipa_->stop();
 }
 
 std::unique_ptr<CamssIspOpe> CamssIspOpe::match(PipelineHandler *pipe,

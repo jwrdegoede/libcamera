@@ -10,6 +10,12 @@
 #include <memory>
 #include <vector>
 
+#include <libcamera/ipa/soft_ipa_interface.h>
+#include <libcamera/ipa/soft_ipa_proxy.h>
+
+#include "libcamera/internal/shared_mem_object.h"
+#include "libcamera/internal/software_isp/debayer_params.h"
+
 #include "camss_isp.h"
 
 namespace libcamera {
@@ -20,7 +26,7 @@ class Converter;
 class DeviceEnumerator;
 class MediaDevice;
 class PipelineHandler;
-class SoftwareIsp;
+class SwStatsCpu;
 
 class CamssIspOpe : public CamssIsp
 {
@@ -54,6 +60,9 @@ private:
 	std::shared_ptr<MediaDevice> opeMediaDev_;
 	std::unique_ptr<Converter> converter_;
 	const CameraSensor *sensor_;
+	SharedMemObject<DebayerParams> sharedParams_;
+	std::unique_ptr<SwStatsCpu> stats_;
+	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;
 };
 
 } /* namespace libcamera */

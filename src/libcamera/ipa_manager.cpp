@@ -247,15 +247,15 @@ unsigned int IPAManager::addDir(const char *libDir, unsigned int maxDepth)
 
 /**
  * \brief Retrieve an IPA module that matches a given pipeline handler
- * \param[in] pipe The pipeline handler
+ * \param[in] name The IPA module string identifier
  * \param[in] minVersion Minimum acceptable version of IPA module
  * \param[in] maxVersion Maximum acceptable version of IPA module
  */
-IPAModule *IPAManager::module(PipelineHandler *pipe, uint32_t minVersion,
+IPAModule *IPAManager::module(const char *name, uint32_t minVersion,
 			      uint32_t maxVersion)
 {
 	for (const auto &module : modules_) {
-		if (module->match(pipe, minVersion, maxVersion))
+		if (module->match(name, minVersion, maxVersion))
 			return module.get();
 	}
 
@@ -263,11 +263,33 @@ IPAModule *IPAManager::module(PipelineHandler *pipe, uint32_t minVersion,
 }
 
 /**
- * \fn IPAManager::createIPA()
- * \brief Create an IPA proxy that matches a given pipeline handler
- * \param[in] pipe The pipeline handler that wants a matching IPA proxy
+ * \fn IPAManager::createIPA(PipelineHandler *pipe, const char *ipaName, uint32_t minVersion, uint32_t maxVersion)
+ * \brief Create an IPA proxy that matches the requested name and version
+ * \param[in] pipe The pipeline handler that wants to create the IPA module
+ * \param[in] ipaName The IPA module name
  * \param[in] minVersion Minimum acceptable version of IPA module
  * \param[in] maxVersion Maximum acceptable version of IPA module
+ *
+ * Create an IPA module using \a name as the matching identifier. This overload
+ * allows pipeline handlers to create an IPA module by specifying its name
+ * instead of relying on the fact that the IPA module matches the pipeline
+ * handler's one.
+ *
+ * \return A newly created IPA proxy, or nullptr if no matching IPA module is
+ * found or if the IPA proxy fails to initialize
+ */
+
+/**
+ * \fn IPAManager::createIPA(PipelineHandler *pipe, uint32_t minVersion, uint32_t maxVersion)
+ * \brief Create an IPA proxy that matches the pipeline handler name and the
+ * requested version
+ * \param[in] pipe The pipeline handler that wants to create the IPA module
+ * \param[in] minVersion Minimum acceptable version of IPA module
+ * \param[in] maxVersion Maximum acceptable version of IPA module
+ *
+ * Create an IPA module using the pipeline handler name as the matching
+ * identifier. This overload allows pipeline handler to create an IPA module
+ * whose name matches the pipeline handler one.
  *
  * \return A newly created IPA proxy, or nullptr if no matching IPA module is
  * found or if the IPA proxy fails to initialize

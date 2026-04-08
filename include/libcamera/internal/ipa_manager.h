@@ -34,12 +34,13 @@ public:
 
 	template<typename T>
 	static std::unique_ptr<T> createIPA(PipelineHandler *pipe,
+					    const char *name,
 					    uint32_t minVersion,
 					    uint32_t maxVersion)
 	{
 		CameraManager *cm = pipe->cameraManager();
 		IPAManager *self = cm->_d()->ipaManager();
-		IPAModule *m = self->module(pipe, minVersion, maxVersion);
+		IPAModule *m = self->module(name, minVersion, maxVersion);
 		if (!m)
 			return nullptr;
 
@@ -60,6 +61,14 @@ public:
 		return proxy;
 	}
 
+	template<typename T>
+	static std::unique_ptr<T> createIPA(PipelineHandler *pipe,
+					    uint32_t minVersion,
+					    uint32_t maxVersion)
+	{
+		return createIPA<T>(pipe, pipe->name(), minVersion, maxVersion);
+	}
+
 #if HAVE_IPA_PUBKEY
 	static const PubKey &pubKey()
 	{
@@ -72,7 +81,7 @@ private:
 		      std::vector<std::string> &files);
 	unsigned int addDir(const char *libDir, unsigned int maxDepth = 0);
 
-	IPAModule *module(PipelineHandler *pipe, uint32_t minVersion,
+	IPAModule *module(const char *name, uint32_t minVersion,
 			  uint32_t maxVersion);
 
 	bool isSignatureValid(IPAModule *ipa) const;

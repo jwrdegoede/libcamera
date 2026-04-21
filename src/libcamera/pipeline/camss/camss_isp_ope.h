@@ -22,11 +22,11 @@ namespace libcamera {
 
 class CameraSensor;
 class ControlInfoMap;
-class Converter;
 class DeviceEnumerator;
 class MediaDevice;
 class PipelineHandler;
 class SwStatsCpu;
+class V4L2VideoDevice;
 
 class CamssIspOpe : public CamssIsp
 {
@@ -57,12 +57,21 @@ public:
 	void stop() override;
 
 private:
+	static constexpr Size kMinOutputSize = Size(24, 16);
+
+	int trySetCfg(V4L2VideoDevice *v4l2Dev, const StreamConfiguration &cfg,
+		      bool set, const char *msgPrefix) const;
+
 	std::shared_ptr<MediaDevice> opeMediaDev_;
-	std::unique_ptr<Converter> converter_;
+	std::unique_ptr<V4L2VideoDevice> params_;
+	std::unique_ptr<V4L2VideoDevice> input_;
+	std::unique_ptr<V4L2VideoDevice> output_;
 	const CameraSensor *sensor_;
 	SharedMemObject<DebayerParams> sharedParams_;
 	std::unique_ptr<SwStatsCpu> stats_;
 	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;
+	unsigned int inputBufferCount_;
+	unsigned int outputBufferCount_;
 };
 
 } /* namespace libcamera */

@@ -7,16 +7,18 @@
 
 #include "camss_isp_ope.h"
 
+#include <string.h>
+
 #include <libcamera/base/log.h>
 
 #include <libcamera/controls.h>
+#include <libcamera/formats.h>
 #include <libcamera/geometry.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/camera_sensor.h"
-#include "libcamera/internal/converter.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
@@ -25,6 +27,8 @@
 #include "libcamera/internal/software_isp/swstats_cpu.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
+
+#include "camss_util.h"
 
 namespace libcamera {
 
@@ -98,7 +102,7 @@ CamssIspOpe::CamssIspOpe([[maybe_unused]] PipelineHandler *pipe, const CameraSen
 		return;
 	}
 
-	/* ipa_->saveIspParams signal is ignored because M2M OPE has not params */
+	/* FIXME ipa_->saveIspParams signal is ignored because M2M OPE has no params */
 	ipa_->metadataReady.connect(this,
 				    [&](uint32_t frame, const ControlList &metadata) {
 						metadataReady.emit(frame, metadata);
@@ -116,82 +120,99 @@ bool CamssIspOpe::isValid()
 	return !!ipa_;
 }
 
+static const std::array camssIspOpeSupportedFormats{
+	formats::NV12,
+	formats::NV21,
+	formats::NV16,
+	formats::NV61,
+	formats::NV24,
+	formats::NV42,
+};
+
+int CamssIspOpe::trySetCfg(V4L2VideoDevice *v4l2Dev, const StreamConfiguration &cfg,
+			   bool set, const char *msgPrefix) const
+{
+	int ret;
+
+	V4L2DeviceFormat v4l2Format;
+	v4l2Format.fourcc = v4l2Dev->toV4L2PixelFormat(cfg.pixelFormat);
+	v4l2Format.size = cfg.size;
+	v4l2Format.planes[0].bpl = cfg.stride;
+	v4l2Format.planesCount = 1;
+
+	if (set)
+		ret = v4l2Dev->setFormat(&v4l2Format);
+	else
+		ret = v4l2Dev->tryFormat(&v4l2Format);
+
+	if (ret < 0) {
+		LOG(Camss, Error) << msgPrefix << " error: " << strerror(-ret);
+		return ret;
+	}
+
+	if (!camssV4L2DeviceFormatMatchesStreamConfig(v4l2Format, cfg, msgPrefix))
+		return -EINVAL;
+
+	return 0;
+}
+
 StreamConfiguration CamssIspOpe::generateConfiguration(const StreamConfiguration &raw) const
 {
-	/* Converters support the same size-ranges for all output formats */
-	std::vector<PixelFormat> pixelFormats = converter_->formats(raw.pixelFormat);
-	SizeRange sizes = converter_->sizes(raw.size);
-
-	if (sizes.max.isNull() || pixelFormats.empty())
+	if (trySetCfg(input_.get(), raw, false, "OPE input try format"))
 		return {};
 
-	std::vector<SizeRange> sizesVector = { sizes };
+	/* OPE always supports all output formats */
+	std::vector<SizeRange> sizesVector = { SizeRange(kMinOutputSize, raw.size, 2, 2) };
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
-
-	for (unsigned int i = 0; i < pixelFormats.size(); i++)
-		formats[pixelFormats[i]] = sizesVector;
+	for (unsigned int i = 0; i < camssIspOpeSupportedFormats.size(); i++)
+		formats[camssIspOpeSupportedFormats[i]] = sizesVector;
 
 	StreamConfiguration cfg{ StreamFormats{ formats } };
-	cfg.size = sizes.max;
-	cfg.pixelFormat = pixelFormats[0];
+	cfg.size = raw.size;
+	cfg.pixelFormat = camssIspOpeSupportedFormats[0];
 	cfg.bufferCount = kBufferCount;
 
 	return cfg;
 }
 
-namespace {
-
-/*
- * \todo copy-pasted from src/libcamera/pipeline/simple/simple.cpp turn this
- * into a member of SizeRange ?
- */
-static Size adjustSize(const Size &requestedSize, const SizeRange &supportedSizes)
-{
-	ASSERT(supportedSizes.min <= supportedSizes.max);
-
-	if (supportedSizes.min == supportedSizes.max)
-		return supportedSizes.max;
-
-	unsigned int hStep = supportedSizes.hStep;
-	unsigned int vStep = supportedSizes.vStep;
-
-	if (hStep == 0)
-		hStep = supportedSizes.max.width - supportedSizes.min.width;
-	if (vStep == 0)
-		vStep = supportedSizes.max.height - supportedSizes.min.height;
-
-	Size adjusted = requestedSize.boundedTo(supportedSizes.max)
-				.expandedTo(supportedSizes.min);
-
-	return adjusted.shrunkBy(supportedSizes.min)
-		.alignedDownTo(hStep, vStep)
-		.grownBy(supportedSizes.min);
-}
-
-} /* namespace */
-
 StreamConfiguration CamssIspOpe::validate(const StreamConfiguration &raw, const StreamConfiguration &req) const
 {
-	StreamConfiguration cfg;
-
-	std::vector<PixelFormat> formats = converter_->formats(raw.pixelFormat);
-	SizeRange sizes = converter_->sizes(raw.size);
-
-	cfg.size = adjustSize(req.size, sizes);
-
-	if (cfg.size.isNull() || formats.empty())
+	/* Must actually set the format here to allow try-fmt on output_ below to work */
+	if (trySetCfg(input_.get(), raw, true, "OPE input set format"))
 		return {};
 
-	for (unsigned int i = 0; i < formats.size(); i++) {
-		if (formats[i] == req.pixelFormat)
+	StreamConfiguration cfg;
+
+	for (unsigned int i = 0; i < camssIspOpeSupportedFormats.size(); i++) {
+		if (camssIspOpeSupportedFormats[i] == req.pixelFormat)
 			cfg.pixelFormat = req.pixelFormat;
 	}
 
 	if (!cfg.pixelFormat.isValid())
-		cfg.pixelFormat = formats[0];
+		cfg.pixelFormat = camssIspOpeSupportedFormats[0];
 
-	std::tie(cfg.stride, cfg.frameSize) =
-		converter_->strideAndFrameSize(cfg.pixelFormat, cfg.size);
+	if (SizeRange(kMinOutputSize, raw.size, 2, 2).contains(req.size))
+		cfg.size = req.size;
+	else
+		cfg.size = raw.size;
+
+	V4L2DeviceFormat v4l2Format;
+	v4l2Format.fourcc = output_->toV4L2PixelFormat(cfg.pixelFormat);
+	v4l2Format.size = cfg.size;
+	v4l2Format.planes[0].bpl = cfg.stride;
+	v4l2Format.planesCount = 1;
+
+	int ret = output_->tryFormat(&v4l2Format);
+	if (ret < 0) {
+		LOG(Camss, Error) << "OPE output try format error: " << strerror(-ret);
+		return {};
+	}
+
+	cfg.stride = v4l2Format.planes[0].bpl;
+	cfg.frameSize = v4l2Format.planes[0].size;
+
+	if (!camssV4L2DeviceFormatMatchesStreamConfig(v4l2Format, cfg, "OPE output try format"))
+		return {};
 
 	cfg.bufferCount = std::max(kBufferCount, req.bufferCount);
 	cfg.setStream(const_cast<Stream *>(&outStream_));
@@ -222,44 +243,53 @@ int CamssIspOpe::configure(const StreamConfiguration &inputCfg,
 	/* stats_->setWindow() takes care of necessary alignment itself */
 	stats_->setWindow(statsWindow);
 
-	std::vector<std::reference_wrapper<const StreamConfiguration>> outputCfgs;
-	outputCfgs.push_back(outputCfg);
-
-	ret = converter_->configure(inputCfg, outputCfgs);
-	if (ret)
+	ret = trySetCfg(input_.get(), inputCfg, true, "OPE input set format");
+	if (ret < 0)
 		return ret;
 
-	converter_->inputBufferReady.connect(this,
-					     [&](FrameBuffer *f) {
-						     inputBufferReady.emit(f);
-					     });
-	converter_->outputBufferReady.connect(this,
-					      [&](FrameBuffer *f) {
-						      outputBufferReady.emit(f);
-					      });
+	ret = trySetCfg(output_.get(), outputCfg, true, "OPE output set format");
+	if (ret < 0)
+		return ret;
+
+	input_->bufferReady.connect(this, [&](FrameBuffer *f) {
+		inputBufferReady.emit(f);
+	});
+	output_->bufferReady.connect(this, [&](FrameBuffer *f) {
+		outputBufferReady.emit(f);
+	});
+
+	inputBufferCount_ = inputCfg.bufferCount;
+	outputBufferCount_ = outputCfg.bufferCount;
 
 	return 0;
 }
 
-int CamssIspOpe::exportOutputBuffers(const Stream *stream, unsigned int count,
+int CamssIspOpe::exportOutputBuffers([[maybe_unused]] const Stream *stream, unsigned int count,
 				     std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
-	return converter_->exportBuffers(stream, count, buffers);
+	return output_->exportBuffers(count, buffers);
 }
 
-void CamssIspOpe::queueBuffers(Request *request, FrameBuffer *input)
+void CamssIspOpe::queueBuffers(Request *request, FrameBuffer *inputBuffer)
 {
 	ipa_->queueRequest(request->sequence(), request->controls());
 	/* Calculate stats for the whole frame */
-	stats_->processFrame(request->sequence(), 0, input);
+	stats_->processFrame(request->sequence(), 0, inputBuffer);
 
+	FrameBuffer *outputBuffer = nullptr;
 	std::map<const Stream *, FrameBuffer *> outputs;
 	for (const auto &[stream, outbuffer] : request->buffers()) {
 		if (stream == &outStream_)
-			outputs[stream] = outbuffer;
+			outputBuffer = outbuffer;
 	}
 
-	converter_->queueBuffers(input, outputs);
+	if (!outputBuffer) {
+		LOG(Camss, Error) << "Request does not contain OPE output buffer";
+		return;
+	}
+
+	output_->queueBuffer(outputBuffer);
+	input_->queueBuffer(inputBuffer);
 }
 
 void CamssIspOpe::processStats(const uint32_t frame, const uint32_t bufferId,
@@ -274,9 +304,25 @@ int CamssIspOpe::start()
 	if (ret)
 		return ret;
 
-	ret = converter_->start();
-	if (ret) {
-		ipa_->stop();
+	ret = input_->importBuffers(inputBufferCount_);
+	if (ret < 0)
+		return ret;
+
+	ret = output_->importBuffers(outputBufferCount_);
+	if (ret < 0) {
+		stop();
+		return ret;
+	}
+
+	ret = input_->streamOn();
+	if (ret < 0) {
+		stop();
+		return ret;
+	}
+
+	ret = output_->streamOn();
+	if (ret < 0) {
+		stop();
 		return ret;
 	}
 
@@ -285,7 +331,10 @@ int CamssIspOpe::start()
 
 void CamssIspOpe::stop()
 {
-	converter_->stop();
+	output_->streamOff();
+	input_->streamOff();
+	output_->releaseBuffers();
+	input_->releaseBuffers();
 	ipa_->stop();
 }
 
@@ -295,15 +344,43 @@ std::unique_ptr<CamssIspOpe> CamssIspOpe::match(PipelineHandler *pipe,
 						ControlInfoMap *ispControls)
 {
 	std::unique_ptr<CamssIspOpe> ope = std::make_unique<CamssIspOpe>(pipe, sensor, ispControls);
+	MediaEntity *paramsEnt, *inputEnt, *outputEnt;
+	int ret;
 
 	DeviceMatch opeDm("qcom-camss-ope");
 
+	opeDm.add("params");
+	opeDm.add("frame-input");
+	opeDm.add("frame-output");
+
 	ope->opeMediaDev_ = pipe->acquireMediaDevice(enumerator, opeDm);
-	if (!ope->opeMediaDev_)
+	if (!ope->opeMediaDev_) {
+		LOG(Camss, Info) << "No OPE match for " << sensor->entity()->name();
+		return nullptr;
+	}
+
+	paramsEnt = ope->opeMediaDev_->getEntityByName("params");
+	inputEnt = ope->opeMediaDev_->getEntityByName("frame-input");
+	outputEnt = ope->opeMediaDev_->getEntityByName("frame-output");
+
+	if (!paramsEnt || !inputEnt || !outputEnt) {
+		LOG(Camss, Error) << "Did not find expected entities";
+		return nullptr;
+	}
+
+	ope->params_ = std::make_unique<V4L2VideoDevice>(paramsEnt);
+	ret = ope->params_->open();
+	if (ret)
 		return nullptr;
 
-	ope->converter_ = ConverterFactoryBase::create(ope->opeMediaDev_);
-	if (!ope->converter_)
+	ope->input_ = std::make_unique<V4L2VideoDevice>(inputEnt);
+	ret = ope->input_->open();
+	if (ret)
+		return nullptr;
+
+	ope->output_ = std::make_unique<V4L2VideoDevice>(outputEnt);
+	ret = ope->output_->open();
+	if (ret)
 		return nullptr;
 
 	LOG(Camss, Info) << "Using OPE for " << sensor->entity()->name();

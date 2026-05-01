@@ -292,7 +292,7 @@ void IPASoftSimple::computeParams(const uint32_t frame)
 		algo->prepare(context_, frame, frameContext, params_);
 	params_->combinedMatrix = context_.activeState.combinedMatrix;
 
-	setIspParams.emit();
+	paramsComputed.emit(frame);
 }
 
 void IPASoftSimple::processStats(const uint32_t frame,

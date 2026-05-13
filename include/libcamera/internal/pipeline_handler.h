@@ -72,6 +72,18 @@ public:
 
 	CameraManager *cameraManager() const { return manager_; }
 
+	/*
+	 * \todo instead of matching on the this->_name or a passed in ipaName
+	 * the IpaProxy class-type template parameter should have a static
+	 * name() member and that should be used to find the IPA.
+	 *
+	 * Fixing this is blocked on the rpi/pisp and rpi/vc4 pipeline-handlers
+	 * each having their own IPA implementation while sharing a single
+	 * IpaProxy class between the two.
+	 *
+	 * Once this is fixed the second createIPA() overload taking an ipaName
+	 * argument should be dropped.
+	 */
 	template<typename T>
 	std::unique_ptr<T> createIPA(uint32_t minVersion, uint32_t maxVersion)
 	{

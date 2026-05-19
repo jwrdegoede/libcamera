@@ -123,16 +123,18 @@ public:
 	const MediaEntity *entity() const { return entity_; }
 
 	int getSelection(const Stream &stream, unsigned int target,
-			 Rectangle *rect);
-	int getSelection(unsigned int pad, unsigned int target, Rectangle *rect)
+			 Rectangle *rect, Whence whence = ActiveFormat);
+	int getSelection(unsigned int pad, unsigned int target, Rectangle *rect,
+			 Whence whence = ActiveFormat)
 	{
-		return getSelection({ pad, 0 }, target, rect);
+		return getSelection({ pad, 0 }, target, rect, whence);
 	}
 	int setSelection(const Stream &stream, unsigned int target,
-			 Rectangle *rect);
-	int setSelection(unsigned int pad, unsigned int target, Rectangle *rect)
+			 Rectangle *rect, Whence whence = ActiveFormat);
+	int setSelection(unsigned int pad, unsigned int target, Rectangle *rect,
+			 Whence whence = ActiveFormat)
 	{
-		return setSelection({ pad, 0 }, target, rect);
+		return setSelection({ pad, 0 }, target, rect, whence);
 	}
 
 	Formats formats(const Stream &stream);

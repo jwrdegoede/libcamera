@@ -1171,17 +1171,19 @@ int V4L2Subdevice::open()
  * \param[in] stream The stream the rectangle is retrieved from
  * \param[in] target The selection target defined by the V4L2_SEL_TGT_* flags
  * \param[out] rect The retrieved selection rectangle
+ * \param[in] whence The format to get, \ref V4L2Subdevice::ActiveFormat
+ * "ActiveFormat" or \ref V4L2Subdevice::TryFormat "TryFormat"
  *
  * \todo Define a V4L2SelectionTarget enum for the selection target
  *
  * \return 0 on success or a negative error code otherwise
  */
 int V4L2Subdevice::getSelection(const Stream &stream, unsigned int target,
-				Rectangle *rect)
+				Rectangle *rect, Whence whence)
 {
 	struct v4l2_subdev_selection sel = {};
 
-	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.which = whence;
 	sel.pad = stream.pad;
 	sel.stream = stream.stream;
 	sel.target = target;
@@ -1205,11 +1207,13 @@ int V4L2Subdevice::getSelection(const Stream &stream, unsigned int target,
 
 /**
  * \fn V4L2Subdevice::getSelection(unsigned int pad, unsigned int target,
- * Rectangle *rect)
+ * Rectangle *rect, Whence whence = ActiveFormat)
  * \brief Get selection rectangle \a rect for \a target
  * \param[in] pad The 0-indexed pad number the rectangle is retrieved from
  * \param[in] target The selection target defined by the V4L2_SEL_TGT_* flags
  * \param[out] rect The retrieved selection rectangle
+ * \param[in] whence The format to get, \ref V4L2Subdevice::ActiveFormat
+ * "ActiveFormat" or \ref V4L2Subdevice::TryFormat "TryFormat"
  *
  * \return 0 on success or a negative error code otherwise
  */
@@ -1219,17 +1223,19 @@ int V4L2Subdevice::getSelection(const Stream &stream, unsigned int target,
  * \param[in] stream The stream the rectangle is to be applied to
  * \param[in] target The selection target defined by the V4L2_SEL_TGT_* flags
  * \param[inout] rect The selection rectangle to be applied
+ * \param[in] whence The format to get, \ref V4L2Subdevice::ActiveFormat
+ * "ActiveFormat" or \ref V4L2Subdevice::TryFormat "TryFormat"
  *
  * \todo Define a V4L2SelectionTarget enum for the selection target
  *
  * \return 0 on success or a negative error code otherwise
  */
 int V4L2Subdevice::setSelection(const Stream &stream, unsigned int target,
-				Rectangle *rect)
+				Rectangle *rect, Whence whence)
 {
 	struct v4l2_subdev_selection sel = {};
 
-	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.which = whence;
 	sel.pad = stream.pad;
 	sel.stream = stream.stream;
 	sel.target = target;
@@ -1258,11 +1264,13 @@ int V4L2Subdevice::setSelection(const Stream &stream, unsigned int target,
 
 /**
  * \fn V4L2Subdevice::setSelection(unsigned int pad, unsigned int target,
- * Rectangle *rect)
+ * Rectangle *rect, Whence whence = ActiveFormat)
  * \brief Set selection rectangle \a rect for \a target
  * \param[in] pad The 0-indexed pad number the rectangle is to be applied to
  * \param[in] target The selection target defined by the V4L2_SEL_TGT_* flags
  * \param[inout] rect The selection rectangle to be applied
+ * \param[in] whence The format to get, \ref V4L2Subdevice::ActiveFormat
+ * "ActiveFormat" or \ref V4L2Subdevice::TryFormat "TryFormat"
  *
  * \todo Define a V4L2SelectionTarget enum for the selection target
  *

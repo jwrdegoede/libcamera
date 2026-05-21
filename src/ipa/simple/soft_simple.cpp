@@ -301,6 +301,15 @@ void IPASoftSimple::processStats(const uint32_t frame,
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 
+	/* Sanity check */
+	if (!sensorControls.contains(V4L2_CID_EXPOSURE) ||
+	    !sensorControls.contains(V4L2_CID_ANALOGUE_GAIN)) {
+		LOG(IPASoft, Error) << "Control(s) missing";
+		metadataReady.emit(frame, {});
+		setSensorControls.emit({});
+		return;
+	}
+
 	frameContext.sensor.exposure =
 		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
 	int32_t again = sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
@@ -310,13 +319,6 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	for (const auto &algo : algorithms())
 		algo->process(context_, frame, frameContext, stats_, metadata);
 	metadataReady.emit(frame, metadata);
-
-	/* Sanity check */
-	if (!sensorControls.contains(V4L2_CID_EXPOSURE) ||
-	    !sensorControls.contains(V4L2_CID_ANALOGUE_GAIN)) {
-		LOG(IPASoft, Error) << "Control(s) missing";
-		return;
-	}
 
 	ControlList ctrls(sensorInfoMap_);
 

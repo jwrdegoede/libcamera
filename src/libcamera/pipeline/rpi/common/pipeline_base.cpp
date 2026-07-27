@@ -1165,7 +1165,7 @@ int CameraData::loadIPA(ipa::RPi::InitResult *result)
 {
 	int ret;
 
-	ipa_ = pipe()->createIPA<ipa::RPi::IPAProxyRPi>(1, 1);
+	ipa_ = pipe()->createIPA<ipa::RPi::IPAProxyRPi>(pipe()->name(), 1, 1);
 
 	if (!ipa_)
 		return -ENOENT;

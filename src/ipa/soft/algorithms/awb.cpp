@@ -15,7 +15,7 @@
 #include <libcamera/control_ids.h>
 
 #include "libipa/colours.h"
-#include "simple/ipa_context.h"
+#include "soft/ipa_context.h"
 
 namespace libcamera {
 

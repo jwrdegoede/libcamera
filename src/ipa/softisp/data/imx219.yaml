@@ -1,0 +1,102 @@
+%YAML 1.1
+---
+version: 1
+algorithms:
+  - Agc:
+      AeMeteringMode:
+        MeteringCentreWeighted: [ 0, 0, 0, 0, 0, 0, 6, 8, 6, 0, 0, 8, 16, 8, 0, 0, 6, 8, 6, 0, 0, 0, 0, 0, 0 ]
+        MeteringSpot: [ 0, 0, 0, 0, 0, 0, 2, 4, 2, 0, 0, 4, 16, 4, 0, 0, 2, 4, 2, 0, 0, 0, 0, 0, 0 ]
+        MeteringMatrix: [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+      AeExposureMode:
+        ExposureNormal:
+          exposureTime: [ 100, 10000, 30000, 60000, 120000 ]
+          gain: [ 2.0, 4.0, 6.0, 6.0, 6.0 ]
+        ExposureShort:
+          exposureTime: [ 100, 5000, 10000, 20000, 120000 ]
+          gain: [ 2.0, 4.0, 6.0, 6.0, 6.0 ]
+      AeConstraintMode:
+        ConstraintNormal:
+          lower:
+            qLo: 0.98
+            qHi: 1.0
+            yTarget: 0.5
+        ConstraintHighlight:
+          lower:
+            qLo: 0.98
+            qHi: 1.0
+            yTarget: 0.5
+          upper:
+            qLo: 0.98
+            qHi: 1.0
+            yTarget: 0.8
+      relativeLuminanceTarget: 0.5
+  - Awb:
+      algorithm: "bayes"
+      AwbMode:
+        AwbAuto:
+          lo: 2500
+          hi: 8000
+        AwbIncandescent:
+          lo: 2500
+          hi: 3000
+        AwbTungsten:
+          lo: 3000
+          hi: 3500
+        AwbFluorescent:
+          lo: 4000
+          hi: 4700
+        AwbIndoor:
+          lo: 3000
+          hi: 5000
+        AwbDaylight:
+          lo: 5500
+          hi: 6500
+        AwbCloudy:
+          lo: 6500
+          hi: 8000
+      priors:
+        - lux: 0
+          ct: [ 2000, 13000 ]
+          probability: [ 1.0, 1.0 ]
+      colourGains:
+        - ct: 2680
+          gains: [ 1.0696331158412664, 2.464875523786049 ]
+        - ct: 2800
+          gains: [ 1.1678150181011329, 2.3185717597959656 ]
+        - ct: 3380
+          gains: [ 1.364442625187611, 2.0128824476650564 ]
+        - ct: 3701
+          gains: [ 1.442169022209403, 1.8993352326685662 ]
+        - ct: 6521
+          gains: [ 1.8201674554058973, 1.4558159848595138 ]
+      transversePos: 0.02611
+      transverseNeg: 0.01846
+  - Adjust:
+  - BlackLevel:
+  - Ccm:
+      ccms:
+        - ct: 2680
+          ccm: [
+                 2.04145, -0.56126, -0.48019, -0.78832, 2.47769, -0.68938, -0.17429, -1.21998,
+                 2.39428,
+               ]
+        - ct: 2800
+          ccm: [
+                 1.92087, -0.22925, -0.69162, -0.65619, 2.62741, -0.97122, -0.12935, -1.16676,
+                 2.29611,
+               ]
+        - ct: 3380
+          ccm: [
+                 2.04191, -0.68073, -0.36118, -0.64258, 2.20689, -0.56431, -0.17019, -0.74294,
+                 1.91313,
+               ]
+        - ct: 3701
+          ccm: [
+                 2.42505, -1.11624, -0.30881, -0.62036, 2.06617, -0.44581, -0.18821, -0.69845,
+                 1.88665,
+               ]
+        - ct: 6521
+          ccm: [
+                 2.08837, -0.86717, -0.22121, -0.51502, 2.29331, -0.77829, -0.14054, -0.58002,
+                 1.72056,
+               ]

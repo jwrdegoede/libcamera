@@ -93,7 +93,7 @@ DebayerCpuThread::DebayerCpuThread(DebayerCpu *debayer, unsigned int threadIndex
  * \param[in] stats Pointer to the stats object to use
  * \param[in] cm The camera manager
  */
-DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm)
+DebayerCpu::DebayerCpu(std::shared_ptr<SwStatsCpu> stats, const CameraManager &cm)
 	: Debayer(cm), stats_(std::move(stats))
 {
 	/*

@@ -33,6 +33,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swstats_cpu.h"
 
 namespace libcamera {
 
@@ -96,6 +97,7 @@ private:
 	void inputReady(FrameBuffer *input);
 	void outputReady(FrameBuffer *output);
 	std::unique_ptr<Debayer> debayer_;
+	std::shared_ptr<SwStatsCpu> stats_;
 	Thread ispWorkerThread_;
 	SharedMemObject<DebayerParams> sharedParams_;
 	DebayerParams debayerParams_;

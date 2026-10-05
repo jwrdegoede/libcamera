@@ -32,7 +32,7 @@ class DebayerCpuThread;
 class DebayerCpu : public Debayer
 {
 public:
-	DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm);
+	DebayerCpu(std::shared_ptr<SwStatsCpu> stats, const CameraManager &cm);
 	~DebayerCpu();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -47,7 +47,6 @@ public:
 	int start() override;
 	void stop() override;
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) override;
-	const SharedFD &getStatsFD() override { return stats_->getStatsFD(); }
 
 private:
 	friend class DebayerCpuThread;
@@ -154,7 +153,7 @@ private:
 	debayerFn debayer2_;
 	debayerFn debayer3_;
 	Rectangle window_;
-	std::unique_ptr<SwStatsCpu> stats_;
+	std::shared_ptr<SwStatsCpu> stats_;
 	unsigned int xShift_; /* Offset of 0/1 applied to window_.x */
 
 	static constexpr unsigned int kMinThreads = 1;

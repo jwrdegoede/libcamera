@@ -98,12 +98,12 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 
 	const CameraManager &cm = *pipe->cameraManager();
 
-	auto stats = std::make_unique<SwStatsCpu>(cm);
-	if (!stats->isValid()) {
+	stats_ = std::make_shared<SwStatsCpu>(cm);
+	if (!stats_->isValid()) {
 		LOG(SoftwareIsp, Error) << "Failed to create SwStatsCpu object";
 		return;
 	}
-	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
+	stats_->statsReady.connect(this, &SoftwareIsp::statsReady);
 
 #if HAVE_DEBAYER_EGL
 	const GlobalConfiguration &configuration = cm._d()->configuration();
@@ -121,7 +121,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	if (!softISPMode || softISPMode == "gpu") {
 		auto display = eGL::probeDisplay();
 		if (display != EGL_NO_DISPLAY) {
-			debayer_ = std::make_unique<DebayerEGL>(std::move(stats), cm, display);
+			debayer_ = std::make_unique<DebayerEGL>(stats_, cm, display);
 		} else {
 			LOG(SoftwareIsp, Info)
 				<< "EGL not available, falling back to CPU debayer";
@@ -130,7 +130,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 
 #endif
 	if (!debayer_)
-		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), cm);
+		debayer_ = std::make_unique<DebayerCpu>(stats_, cm);
 
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
@@ -158,7 +158,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
-			 debayer_->getStatsFD(),
+			 stats_->getStatsFD(),
 			 sharedParams_.fd(),
 			 sensorInfo,
 			 sensor->controls(),

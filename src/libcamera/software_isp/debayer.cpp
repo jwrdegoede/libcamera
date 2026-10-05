@@ -175,16 +175,6 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn const SharedFD &Debayer::getStatsFD()
- * \brief Get the file descriptor for the statistics
- *
- * This file descriptor provides access to the output statistics buffer
- * associated with the current debayering process.
- *
- * \return The file descriptor pointing to the statistics data
- */
-
-/**
  * \fn unsigned int Debayer::frameSize()
  * \brief Get the output frame size
  *

@@ -42,7 +42,7 @@ namespace libcamera {
  * \param[in] cm The camera manager
  * \param[in] display The EGL display to use
  */
-DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm, EGLDisplay display)
+DebayerEGL::DebayerEGL(std::shared_ptr<SwStatsCpu> stats, const CameraManager &cm, EGLDisplay display)
 	: Debayer(cm), stats_(std::move(stats)), egl_(display)
 {
 }

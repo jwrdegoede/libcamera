@@ -55,8 +55,6 @@ public:
 
 	virtual SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) = 0;
 
-	virtual const SharedFD &getStatsFD() = 0;
-
 	unsigned int frameSize() { return outputConfig_.frameSize; }
 
 	Signal<FrameBuffer *> inputBufferReady;

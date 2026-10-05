@@ -379,7 +379,7 @@ int SoftwareIsp::queueBuffers(uint32_t frame, FrameBuffer *input,
  */
 int SoftwareIsp::start()
 {
-	int ret = ipa_->start();
+	int ret = startIpa();
 	if (ret)
 		return ret;
 
@@ -387,6 +387,19 @@ int SoftwareIsp::start()
 
 	return debayer_->invokeMethod(&Debayer::start,
 				      ConnectionTypeBlocking);
+}
+
+/**
+ * \brief Starts the software ISP IPA
+ *
+ * Only the IPA is started here. If you want full software ISP with debayering,
+ * use \a start() instead.
+ *
+ * \return 0 on success, any other value indicates an error
+ */
+int SoftwareIsp::startIpa()
+{
+	return ipa_->start();
 }
 
 /**
@@ -410,7 +423,7 @@ void SoftwareIsp::stop()
 
 	Thread::current()->dispatchMessages(Message::Type::InvokeMessage, this);
 
-	ipa_->stop();
+	stopIpa();
 
 	for (auto buffer : queuedOutputBuffers_) {
 		buffer->_d()->cancel();
@@ -423,6 +436,17 @@ void SoftwareIsp::stop()
 		inputBufferReady.emit(buffer);
 	}
 	queuedInputBuffers_.clear();
+}
+
+/**
+ * \brief Stops the software ISP IPA
+ *
+ * Only the IPA is stopped here. If you stop full software ISP with debayering,
+ * use \a stop() instead.
+ */
+void SoftwareIsp::stopIpa()
+{
+	ipa_->stop();
 }
 
 /**

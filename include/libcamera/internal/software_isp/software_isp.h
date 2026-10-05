@@ -78,6 +78,9 @@ public:
 	int start();
 	void stop();
 
+	int startIpa();
+	void stopIpa();
+
 	void queueRequest(const uint32_t frame, const ControlList &controls);
 	int queueBuffers(uint32_t frame, FrameBuffer *input,
 			 const std::map<const Stream *, FrameBuffer *> &outputs);

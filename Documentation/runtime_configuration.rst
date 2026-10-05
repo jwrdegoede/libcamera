@@ -46,6 +46,7 @@ file structure:
         supported_devices:
           - driver: # driver name, e.g. `mxc-isi`
             software_isp: # true/false
+        enable_raw_ipa: # true/false
     software_isp:
       copy_input_buffer: # true/false
       measure:
@@ -81,6 +82,7 @@ Configuration file example
          supported_devices:
            - driver: mxc-isi
              software_isp: true
+         enable_raw_ipa: true
      software_isp:
        copy_input_buffer: false
        measure:
@@ -156,6 +158,14 @@ pipelines.simple.supported_devices.driver, pipelines.simple.supported_devices.so
    Example `driver` value: ``mxc-isi``
 
    Example `software_isp` value: ``true``
+
+pipelines.simple.enable_raw_ipa
+   Whether image processing algorithms are enabled also with raw-only
+   output. When enabled, statistics is gathered for raw-only output,
+   image processing algorithms are run on it, metadata is produced and
+   exposure is adjusted.
+
+   Example value: ``true``
 
 software_isp.copy_input_buffer
    Define whether input buffers should be copied into standard (cached)

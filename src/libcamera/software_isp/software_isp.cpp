@@ -25,6 +25,7 @@
 
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/mapped_framebuffer.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
 
 #include "debayer_cpu.h"
@@ -281,18 +282,33 @@ uint32_t SoftwareIsp::preferredInputStride(const PixelFormat &inputFormat, const
  * \param[in] outputCfgs The output configurations
  * \param[in] configInfo The IPA configuration data, received from the pipeline handler
  * \param[out] ipaControls The IPA controls to update
+ * \param[in] debayerEnabled Whether debayering should be performed in addition
+ *   to stats and IPA processing
  * \return 0 on success, a negative errno on failure
  */
 int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 			   const std::vector<std::reference_wrapper<const StreamConfiguration>> &outputCfgs,
 			   const ipa::softisp::IPAConfigInfo &configInfo,
-			   ControlInfoMap *ipaControls)
+			   ControlInfoMap *ipaControls,
+			   bool debayerEnabled)
 {
-	ASSERT(ipa_ && debayer_);
+	ASSERT(ipa_ && (!debayerEnabled || debayer_));
 
-	int ret = ipa_->configure(configInfo, ipaControls);
+	int ret;
+	if (!debayerEnabled) {
+		ret = stats_->configure(inputCfg);
+		if (ret < 0)
+			return ret;
+		stats_->setWindow(Rectangle(inputCfg.size));
+	}
+
+	ret = ipa_->configure(configInfo, ipaControls);
 	if (ret < 0)
 		return ret;
+
+	if (!debayerEnabled) {
+		return 0;
+	}
 
 	ret = debayer_->configure(inputCfg, outputCfgs, ccmEnabled_, lscEnabled_);
 	if (ret < 0)
@@ -453,13 +469,25 @@ void SoftwareIsp::stopIpa()
  * \brief Passes the input framebuffer to the ISP worker to process
  * \param[in] frame The frame number
  * \param[in] input The input framebuffer
- * \param[out] output The framebuffer to write the processed frame to
+ * \param[out] output The framebuffer to write the processed frame to; if
+ *   nullptr then debayering is skipped and stats are processed synchronously
  */
 void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
 	ipa_->computeParams(frame);
-	debayer_->invokeMethod(&Debayer::process,
-			       ConnectionTypeQueued, frame, input, output, debayerParams_);
+
+	if (output) {
+		debayer_->invokeMethod(&Debayer::process,
+				       ConnectionTypeQueued, frame, input, output, debayerParams_);
+	} else {
+		/* Compute stats, which are otherwise computed in debayering */
+		if (frame % SwStatsCpu::kStatPerNumFrames) {
+			stats_->finishFrame(frame, 0);
+		} else {
+			MappedFrameBuffer inputMapped(input, MappedFrameBuffer::MapFlag::Read);
+			stats_->processFrame(frame, 0, inputMapped);
+		}
+	}
 }
 
 void SoftwareIsp::saveIspParams([[maybe_unused]] uint32_t frame)

@@ -588,6 +588,7 @@ void CamssIspOpe::paramsComputed(uint32_t frame)
 	 */
 	auto colorCorrect = params.block<ipa::camss::CamssBlocks::ColorCorrect>();
 	colorCorrect->qfactor = 1; /* Select 12sQ8 format for matrix values */
+	if (!getenv("NO_CCM")) {
 	colorCorrect->a[0] = (int)(std::clamp(debayerParams.combinedMatrix[1][1], -8.0f, 7.9f) * 256);
 	colorCorrect->a[1] = (int)(std::clamp(debayerParams.combinedMatrix[2][1], -8.0f, 7.9f) * 256);
 	colorCorrect->a[2] = (int)(std::clamp(debayerParams.combinedMatrix[0][1], -8.0f, 7.9f) * 256);
@@ -597,6 +598,17 @@ void CamssIspOpe::paramsComputed(uint32_t frame)
 	colorCorrect->c[0] = (int)(std::clamp(debayerParams.combinedMatrix[1][0], -8.0f, 7.9f) * 256);
 	colorCorrect->c[1] = (int)(std::clamp(debayerParams.combinedMatrix[2][0], -8.0f, 7.9f) * 256);
 	colorCorrect->c[2] = (int)(std::clamp(debayerParams.combinedMatrix[0][0], -8.0f, 7.9f) * 256);
+	} else {
+	colorCorrect->a[0] = 256;
+	colorCorrect->a[1] = 0;
+	colorCorrect->a[2] = 0;
+	colorCorrect->b[0] = 0;
+	colorCorrect->b[1] = 256;
+	colorCorrect->b[2] = 0;
+	colorCorrect->c[0] = 0;
+	colorCorrect->c[1] = 0;
+	colorCorrect->c[2] = 256;
+	}
 	colorCorrect->k[0] = 0;
 	colorCorrect->k[1] = 0;
 	colorCorrect->k[2] = 0;

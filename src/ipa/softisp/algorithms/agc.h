@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <libipa/agc.h>
+#include <libipa/agc_msv.h>
 
 #include "algorithm.h"
 
@@ -18,15 +18,7 @@ namespace ipa::softisp::algorithms {
 class Agc : public Algorithm
 {
 public:
-	int init(IPAContext &context, const ValueNode &tuningData) override;
-
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
-
-	void queueRequest(IPAContext &context, const uint32_t frame,
-			  IPAFrameContext &frameContext, const ControlList &controls) override;
-
-	void prepare(IPAContext &context, const uint32_t frame,
-		     IPAFrameContext &frameContext, DebayerParams *params) override;
 
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
@@ -34,7 +26,7 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	AgcAlgorithm agc_;
+	AgcMSV agc_;
 };
 
 } /* namespace ipa::softisp::algorithms */

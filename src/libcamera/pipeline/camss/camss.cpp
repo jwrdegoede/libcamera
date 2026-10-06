@@ -541,9 +541,12 @@ bool PipelineHandlerCamss::match(DeviceEnumerator *enumerator)
 		data->delayedCtrls_ =
 			std::make_unique<DelayedControls>(sensor->device(), params);
 
-		data->isp_ = CamssIspOpe::match(this, enumerator, sensor,
-						&data->frameInfos_,
-						&data->controlInfo_);
+		if (getenv("NO_OPE"))
+			data->isp_ = nullptr;
+		else
+			data->isp_ = CamssIspOpe::match(this, enumerator, sensor,
+							&data->frameInfos_,
+							&data->controlInfo_);
 		if (data->isp_ == nullptr) {
 			data->isp_ =
 				std::make_unique<CamssIspSoft>(this, sensor,

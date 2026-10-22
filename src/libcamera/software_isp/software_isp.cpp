@@ -24,6 +24,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
 
@@ -76,14 +77,18 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  * \brief Constructs SoftwareIsp object
  * \param[in] pipe The pipeline handler in use
  * \param[in] sensor Pointer to the CameraSensor instance owned by the pipeline handler
+ * \param[in] flags SoftwareIspFlags
  * \param[out] ipaControls The IPA controls to update
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-			 ControlInfoMap *ipaControls)
+			 SoftwareIspFlags flags, ControlInfoMap *ipaControls)
 	: ispWorkerThread_("SWIspWorker"),
-	  dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
+	  /* clang-format off */
+	  dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf |
 		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
-		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
+		   ((flags & SoftwareIsp::SoftwareIspFlag::AllocCmaDmaBuffers) ?
+		    DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap :
+		    DmaBufAllocator::DmaBufAllocatorFlag{})) /* clang-format on */
 {
 	if (!dmaHeap_.isValid()) {
 		LOG(SoftwareIsp, Error) << "Failed to create DmaBufAllocator object";

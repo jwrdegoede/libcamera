@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/flags.h>
 #include <libcamera/base/log.h>
 #include <libcamera/base/object.h>
 #include <libcamera/base/signal.h>
@@ -29,7 +30,6 @@
 #include <libcamera/ipa/softisp_ipa_proxy.h>
 
 #include "libcamera/internal/camera_sensor.h"
-#include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
@@ -37,6 +37,7 @@
 namespace libcamera {
 
 class Debayer;
+class DmaBufAllocator;
 class FrameBuffer;
 class PixelFormat;
 class Stream;
@@ -47,8 +48,14 @@ LOG_DECLARE_CATEGORY(SoftwareIsp)
 class SoftwareIsp : public Object
 {
 public:
+	enum class SoftwareIspFlag {
+		AllocCmaDmaBuffers = 1 << 0,
+	};
+
+	using SoftwareIspFlags = Flags<SoftwareIspFlag>;
+
 	SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-		    ControlInfoMap *ipaControls);
+		    SoftwareIspFlags flags, ControlInfoMap *ipaControls);
 	~SoftwareIsp();
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }
@@ -99,7 +106,7 @@ private:
 	Thread ispWorkerThread_;
 	SharedMemObject<DebayerParams> sharedParams_;
 	DebayerParams debayerParams_;
-	DmaBufAllocator dmaHeap_;
+	DmaBufAllocator *dmaHeap_;
 	bool ccmEnabled_;
 	bool lscEnabled_;
 

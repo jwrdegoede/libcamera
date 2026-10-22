@@ -252,19 +252,21 @@ struct SimplePipelineInfo {
 	 * The Software ISP can't be used together with the converters.
 	 */
 	bool swIspAllowed;
+	/* Flags controlling Software ISP behavior. */
+	SoftwareIsp::SoftwareIspFlags swIspFlags;
 };
 
 namespace {
 
 static const SimplePipelineInfo supportedDevices[] = {
-	{ "dcmipp", {}, false },
-	{ "imx7-csi", { { "pxp", 1 } }, true },
-	{ "intel-ipu6", {}, true },
-	{ "intel-ipu7", {}, true },
-	{ "j721e-csi2rx", {}, true },
-	{ "mtk-seninf", { { "mtk-mdp", 3 } }, false },
-	{ "mxc-isi", {}, false },
-	{ "sun6i-csi", {}, false },
+	{ "dcmipp", {}, false, {} },
+	{ "imx7-csi", { { "pxp", 1 } }, true, SoftwareIsp::SoftwareIspFlag::AllocCmaDmaBuffers },
+	{ "intel-ipu6", {}, true, {} },
+	{ "intel-ipu7", {}, true, {} },
+	{ "j721e-csi2rx", {}, true, SoftwareIsp::SoftwareIspFlag::AllocCmaDmaBuffers },
+	{ "mtk-seninf", { { "mtk-mdp", 3 } }, false, {} },
+	{ "mxc-isi", {}, false, {} },
+	{ "sun6i-csi", {}, false, {} },
 };
 
 bool isRaw(const StreamConfiguration &cfg)
@@ -429,6 +431,7 @@ public:
 	V4L2Subdevice *subdev(const MediaEntity *entity);
 	std::shared_ptr<MediaDevice> converter() { return converter_; }
 	bool swIspEnabled() const { return swIspEnabled_; }
+	SoftwareIsp::SoftwareIspFlags swIspFlags() const { return swIspFlags_; }
 
 protected:
 	int queueRequestDevice(Camera *camera, Request *request) override;
@@ -462,6 +465,7 @@ private:
 
 	std::shared_ptr<MediaDevice> converter_;
 	bool swIspEnabled_ = false;
+	SoftwareIsp::SoftwareIspFlags swIspFlags_;
 };
 
 /* -----------------------------------------------------------------------------
@@ -618,7 +622,7 @@ int SimpleCameraData::init()
 	 */
 	if (!converter_ && pipe->swIspEnabled()) {
 		swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor_.get(),
-						       SoftwareIsp::SoftwareIspFlag::AllocCmaDmaBuffers,
+						       pipe->swIspFlags(),
 						       &controlInfo_);
 		if (!swIsp_->isValid()) {
 			LOG(SimplePipeline, Warning)
@@ -1963,6 +1967,7 @@ bool SimplePipelineHandler::matchDevice(std::shared_ptr<MediaDevice> media,
 		 */
 		numStreams = 2;
 		swIspEnabled_ = true;
+		swIspFlags_ = info.swIspFlags;
 	} else if (converter.dev) {
 		converter_ = std::move(converter.dev);
 		numStreams = converter.streams;

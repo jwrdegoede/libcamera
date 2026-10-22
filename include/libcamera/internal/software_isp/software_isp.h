@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/flags.h>
 #include <libcamera/base/log.h>
 #include <libcamera/base/object.h>
 #include <libcamera/base/signal.h>
@@ -47,8 +48,14 @@ LOG_DECLARE_CATEGORY(SoftwareIsp)
 class SoftwareIsp : public Object
 {
 public:
+	enum class SoftwareIspFlag {
+		AllocCmaDmaBuffers = 1 << 0,
+	};
+
+	using SoftwareIspFlags = Flags<SoftwareIspFlag>;
+
 	SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-		    ControlInfoMap *ipaControls);
+		    SoftwareIspFlags flags, ControlInfoMap *ipaControls);
 	~SoftwareIsp();
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }

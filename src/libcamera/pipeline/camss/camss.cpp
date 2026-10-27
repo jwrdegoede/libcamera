@@ -38,6 +38,7 @@
 #include "camss_csi.h"
 #include "camss_frames.h"
 #include "camss_isp.h"
+#include "camss_isp_raw.h"
 #include "camss_isp_soft.h"
 
 namespace libcamera {
@@ -61,7 +62,10 @@ public:
 	void cancelPendingRequests();
 
 	std::unique_ptr<CamssCsiCamera> csi_;
-	std::unique_ptr<CamssIsp> isp_;
+	std::unique_ptr<CamssIsp> processedIsp_;
+	std::unique_ptr<CamssIsp> rawIsp_;
+	/* Points to either processedIsp_ or rawIsp_ */
+	CamssIsp *isp_;
 	std::unique_ptr<DelayedControls> delayedCtrls_;
 	CamssFrames frameInfos_;
 
@@ -172,23 +176,16 @@ CameraConfiguration::Status CamssCameraConfiguration::validate()
 		}
 	}
 
-	if (!processedCount) {
-		/*
-		 * \todo allow this, add dummyISP ISP class which only
-		 * calls CPU stats on ready raw output buffers + runs the result
-		 * through the softIPA to get sensor-control + metadata-info
-		 */
-		LOG(Camss, Debug)
-			<< "Camera configuration cannot support raw-only streams";
+	if (!rawCount && !processedCount)
 		return Invalid;
-	}
 
 	if (!rawCount) {
 		rawConfig.size = processedConfig.size;
 		rawConfig.bufferCount = processedConfig.bufferCount;
 	}
 
-	csiConfig_ = data_->csi_->validate(rawConfig, data_->isp_.get());
+	CamssIsp *isp = processedCount ? data_->processedIsp_.get() : data_->rawIsp_.get();
+	csiConfig_ = data_->csi_->validate(rawConfig, isp);
 	if (!csiConfig_.pixelFormat.isValid())
 		return Invalid;
 
@@ -196,7 +193,7 @@ CameraConfiguration::Status CamssCameraConfiguration::validate()
 			  << " stride " << csiConfig_.stride
 			  << " frameSize " << csiConfig_.frameSize;
 
-	ispConfig_ = data_->isp_->validate(csiConfig_, processedConfig);
+	ispConfig_ = isp->validate(csiConfig_, processedConfig);
 	if (!ispConfig_.pixelFormat.isValid())
 		return Invalid;
 
@@ -216,7 +213,7 @@ CameraConfiguration::Status CamssCameraConfiguration::validate()
 			stream = &data_->csi_->rawStream_;
 		} else {
 			hwCfg = &ispConfig_;
-			stream = &data_->isp_->outStream_;
+			stream = &isp->outStream_;
 		}
 
 		StreamConfiguration &cfg = config_[i];
@@ -321,7 +318,7 @@ PipelineHandlerCamss::generateConfiguration(Camera *camera, std::span<const Stre
 		config->addConfiguration(csiConfig);
 
 	if (processedRequested) {
-		cfg = data->isp_->generateConfiguration(csiConfig);
+		cfg = data->processedIsp_->generateConfiguration(csiConfig);
 		if (!cfg.pixelFormat.isValid())
 			return nullptr;
 
@@ -345,6 +342,11 @@ int PipelineHandlerCamss::configure(Camera *camera, CameraConfiguration *c)
 	ret = data->csi_->configure(config->csiConfig_, config->combinedTransform_);
 	if (ret)
 		return ret;
+
+	if (config->ispConfig_.pixelFormat == config->csiConfig_.pixelFormat)
+		data->isp_ = data->rawIsp_.get();
+	else
+		data->isp_ = data->processedIsp_.get();
 
 	return data->isp_->configure(config->csiConfig_, config->ispConfig_,
 				     &data->controlInfo_);
@@ -426,7 +428,7 @@ void PipelineHandlerCamss::stopDevice(Camera *camera)
 }
 
 CamssCameraData::CamssCameraData(PipelineHandler *pipe)
-	: Camera::Private(pipe)
+	: Camera::Private(pipe), isp_(nullptr)
 {
 	frameInfos_.bufferAvailable.connect(this, &CamssCameraData::queuePendingRequests);
 }
@@ -523,27 +525,37 @@ bool PipelineHandlerCamss::match(DeviceEnumerator *enumerator)
 		data->delayedCtrls_ =
 			std::make_unique<DelayedControls>(sensor->device(), params);
 
-		data->isp_ = std::make_unique<CamssIspSoft>(this, sensor,
-							    &data->frameInfos_,
-							    &data->controlInfo_);
-		if (!data->isp_->isValid()) {
+		data->processedIsp_ = std::make_unique<CamssIspSoft>(this, sensor,
+								     &data->frameInfos_,
+								     &data->controlInfo_);
+		if (!data->processedIsp_->isValid()) {
 			LOG(Camss, Error) << "Failed to create software ISP";
 			continue;
 		}
 
-		data->isp_->inputBufferReady.connect(data->csi_.get(),
-						     &CamssCsiCamera::tryReturnBuffer);
-		data->isp_->outputBufferReady.connect(data.get(),
-						      &CamssCameraData::ispOutputBufferReady);
-		data->isp_->paramBufferReady.connect(data.get(),
-						     &CamssCameraData::ispParameterBufferReady);
-		data->isp_->statsReady.connect(data.get(), &CamssCameraData::statsReady);
-		data->isp_->metadataReady.connect(data.get(), &CamssCameraData::metadataReady);
-		data->isp_->setSensorControls.connect(data.get(), &CamssCameraData::setSensorControls);
+		data->rawIsp_ = std::make_unique<CamssIspRaw>(this, sensor,
+							      &data->frameInfos_,
+							      &data->controlInfo_);
+		if (!data->rawIsp_->isValid()) {
+			LOG(Camss, Error) << "Failed to create raw ISP";
+			continue;
+		}
+
+		for (auto isp : { data->processedIsp_.get(), data->rawIsp_.get() }) {
+			isp->inputBufferReady.connect(data->csi_.get(),
+						      &CamssCsiCamera::tryReturnBuffer);
+			isp->outputBufferReady.connect(data.get(),
+						       &CamssCameraData::ispOutputBufferReady);
+			isp->paramBufferReady.connect(data.get(),
+						      &CamssCameraData::ispParameterBufferReady);
+			isp->statsReady.connect(data.get(), &CamssCameraData::statsReady);
+			isp->metadataReady.connect(data.get(), &CamssCameraData::metadataReady);
+			isp->setSensorControls.connect(data.get(), &CamssCameraData::setSensorControls);
+		}
 
 		/* Create and register the Camera instance. */
 		std::set<Stream *> streams = {
-			&data->isp_->outStream_,
+			&data->processedIsp_->outStream_,
 			&data->csi_->rawStream_,
 		};
 		std::shared_ptr<Camera> camera =

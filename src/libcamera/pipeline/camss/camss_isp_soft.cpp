@@ -41,7 +41,9 @@ CamssIspSoft::CamssIspSoft(PipelineHandler *pipe, const CameraSensor *sensor,
 			   CamssFrames *frameInfos, ControlInfoMap *ispControls)
 	: sensor_(sensor), frameInfos_(frameInfos)
 {
-	swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor, ispControls);
+	swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor,
+					       SoftwareIsp::SoftwareIspFlags(),
+					       ispControls);
 
 	swIsp_->inputBufferReady.connect(this,
 					 [&](FrameBuffer *f) { inputBufferReady.emit(f); });

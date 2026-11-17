@@ -78,7 +78,7 @@ class LSCSoftisp(LSC):
             tables = []
             for lis in [list_cr, list_cg, list_cb]:
                 table = np.mean(lis[indices], axis=0)
-                table = output_map_func((1, 3), (1, 255), table)
+                table = output_map_func((1, 4), (64, 255), table)
                 table = np.clip(table, 1, 255)
                 table = np.round(table).astype('int32').tolist()
                 tables.append(table)
